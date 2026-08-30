@@ -1030,8 +1030,10 @@ class Handler(BaseHTTPRequestHandler):
             if (self.headers.get("Sec-Fetch-Site") or "").strip().lower() == "cross-site":
                 self._json(dict(error="forbidden: cross-site request"), 403)
                 return False
+            # 任何 Origin 都必须精确匹配本机 http://<回环>:<端口>；
+            # "null"（file:// 页面、沙箱 iframe）同样拒绝，只放行不带 Origin 的本地脚本/CLI
             origin = self.headers.get("Origin")
-            if origin and origin.strip().lower() != "null":
+            if origin:
                 scheme, ohost, oport = _host_port(origin)
                 if scheme != "http" or ohost not in LOCAL_HOSTS or oport != port:
                     self._json(dict(error="forbidden: cross-origin request"), 403)

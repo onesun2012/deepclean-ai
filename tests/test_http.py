@@ -80,6 +80,9 @@ def main():
         code, _ = http("POST", "/api/clean", body=json.dumps({"ids": [], "dry": True}).encode(),
                        headers={"Sec-Fetch-Site": "cross-site"})
         check("Sec-Fetch-Site: cross-site 返回 403", code == 403)
+        code, _ = http("POST", "/api/clean", body=json.dumps({"ids": [], "dry": True}).encode(),
+                       headers={"Origin": "null"})
+        check("Origin: null（file:// 或沙箱 iframe）返回 403", code == 403)
         code, out = http("POST", "/api/clean",
                          body=json.dumps({"ids": ["sandbox"], "dry": True}).encode(),
                          headers={"Origin": base})
