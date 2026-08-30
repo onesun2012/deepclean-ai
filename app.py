@@ -1138,6 +1138,41 @@ def find_port():
     return 0
 
 
+def _open_browser(url):
+    """打开结果页面：默认浏览器 → 常见浏览器路径 → 弹窗给出地址。
+
+    Windows 沙盒 / 精简系统可能没有注册 http 协议关联（os.startfile 报
+    “无法打开此 http 链接”），此时按常见安装路径直接拉起浏览器，
+    仍失败则弹窗告知手动访问，保证服务本身始终可用。
+    """
+    try:
+        os.startfile(url)
+        return
+    except Exception:
+        pass
+    if webbrowser.open(url):
+        return
+    for browser in (
+        r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+        r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
+        r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+        r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+        r"C:\Program Files\Mozilla Firefox\firefox.exe",
+    ):
+        if os.path.exists(browser):
+            try:
+                subprocess.Popen([browser, url])
+                return
+            except Exception:
+                pass
+    try:
+        ctypes.windll.user32.MessageBoxW(
+            None, "深清已在后台运行。\n\n请用浏览器打开：%s\n\n（关闭本提示不影响清理功能）" % url,
+            "深清 DeepClean", 0x40)
+    except Exception:
+        pass
+
+
 def main():
     port = find_port()
     if not port:
@@ -1149,10 +1184,7 @@ def main():
     log("深度C盘清理已启动: %s   （管理员模式: %s）" % (url, "是" if is_admin() else "否"))
     log("使用完毕后直接关闭本窗口/进程即可。")
     if os.environ.get("CLEAR_C_NO_BROWSER") != "1":
-        try:
-            os.startfile(url)
-        except Exception:
-            webbrowser.open(url)
+        _open_browser(url)
     try:
         while True:
             time.sleep(3600)
