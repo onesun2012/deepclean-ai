@@ -14,7 +14,7 @@
 ## 安全承诺
 
 1. 默认只读扫描，不自动删除
-2. 会话记录（Codex `sessions`、Claude `projects`、Cursor 对话历史）**永不进入清理计划**（后端硬排除）
+2. 会话与文件历史（Codex `sessions`、Claude `projects` 与 `file-history`、ZCode `rollout`、Cursor 对话历史与 `User\History`）**永不进入清理计划**（后端硬排除）；WinSxS / 虚拟内存 / 休眠文件 / 系统还原点等系统危险项同样锁定，请用系统自带工具处理
 3. 模型文件不删除，只提供「迁移 + 目录联接」
 4. 保留期内的文件、被占用文件自动跳过
 5. 清理只删除扫描时记录的、属于规则路径的文件

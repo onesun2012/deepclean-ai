@@ -11,7 +11,7 @@
      - `risk`：`safe`（日志/临时）/ `rebuildable`（缓存/索引，删后重建）/ `migrate`（模型等大文件，只迁不删）/ `danger`（会话、配置，锁定不清理）
      - `labelZh` / `labelEn`、`hintZh` / `hintEn`：这个目录是什么、删了会怎样
      - `paths`：精确路径，支持 `%ENV%` 与通配符
-   - 红线：**会话记录、对话历史、凭据文件一律 `danger` + `locked: true`**
+   - 红线：**会话记录、对话历史、文件历史、凭据文件一律 `danger` + `locked: true`**
 3. 提 PR，附一张扫描截图（清理前后磁盘用量更佳）
 
 ## 目录结构
@@ -19,9 +19,8 @@
 ```
 app.py            # 后端：HTTP 服务 + 扫描/清理/迁移引擎（Python 标准库，零依赖）
 rules/*.json      # 清理规则（贡献主战场）
-static/index.html # 前端（单文件，无构建）
-locales/          # 界面文案（zh-CN / en）
-tests/            # 沙盒回归测试（不触碰真实目录）
+static/index.html # 前端（单文件，无构建；界面文案暂内嵌于其中的 I18N 对象，zh/en）
+tests/            # 回归测试：test_rules.py 规则 lint；test_sandbox.py / test_http.py 沙盒与接口测试（不触碰真实目录）
 ```
 
 ## 本地开发
