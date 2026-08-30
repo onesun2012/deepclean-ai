@@ -1,15 +1,16 @@
 @echo off
-rem 一键打包深清 DeepClean 为单文件 exe（需要 Python 与网络：pip install pyinstaller）
-chcp 65001 >nul
+rem Build DeepClean single-file exe. Needs Python 3.8+ and pip network access.
+rem NOTE: keep this file ASCII-only. A batch file with "chcp 65001" plus
+rem multibyte text can misparse later lines (classic cmd codepage offset bug).
 cd /d "%~dp0"
-echo [1/3] 安装 PyInstaller...
-python -m pip install --quiet pyinstaller || (echo PyInstaller 安装失败 & pause & exit /b 1)
-echo [2/3] 打包中（约 1-2 分钟）...
+echo [1/3] Installing PyInstaller...
+python -m pip install --quiet pyinstaller || (echo PyInstaller install failed & pause & exit /b 1)
+echo [2/3] Building (about 1-2 minutes)...
 python -m PyInstaller --noconfirm --onefile --noconsole ^
   --name DeepClean ^
   --add-data "static;static" ^
   --add-data "rules;rules" ^
-  app.py || (echo 打包失败 & pause & exit /b 1)
-echo [3/3] 完成: dist\DeepClean.exe
-echo 双击 DeepClean.exe 即可运行，无需安装 Python。
+  app.py || (echo Build failed & pause & exit /b 1)
+echo [3/3] Done: dist\DeepClean.exe
+echo Double-click DeepClean.exe to run. No Python needed on the target machine.
 pause

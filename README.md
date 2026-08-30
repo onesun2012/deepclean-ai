@@ -23,8 +23,7 @@
 
 | 方式 | 说明 |
 |---|---|
-| `DeepClean.exe`（Releases） | 单文件，免安装 Python，双击即用 |
-| 源码运行 | `python app.py`，或双击 `启动.bat`（管理员用 `以管理员启动.bat`） |
+| 源码运行 | `python app.py`，或双击 `启动.bat`（管理员用 `以管理员启动.bat`）。单文件 exe 正在打包验证，随后发布到 Releases |
 
 打包 exe：`打包exe.bat`（需要 Python + pip 网络）。
 
