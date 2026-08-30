@@ -44,6 +44,9 @@ MAX_FILES_PER_CAT = 400000  # 单类别统计上限，防止极端目录拖垮�
 
 
 LOG_FILE = os.path.join(APP_DIR, "clearc.log")
+# PyInstaller 单文件模式下 APP_DIR 在临时解包目录里，日志放到 exe 旁边才找得到
+if getattr(sys, "frozen", False):
+    LOG_FILE = os.path.join(os.path.dirname(os.path.abspath(sys.executable)), "clearc.log")
 
 
 def log(msg):
@@ -1190,13 +1193,12 @@ def _has_http_association():
 def _open_browser(url):
     """打开结果页面。
 
-    Windows 沙盒 / 精简系统没有 http 协议关联：直接 ShellExecute 会弹系统
-    「无法打开此 http 链接」错误框。因此先查注册表确认关联存在才走默认浏览器
-    （ShellExecute 带 NO_UI），否则直接按常见安装路径拉起浏览器，最后弹窗给出地址。
+    已知浏览器安装路径优先：Windows 沙盒等精简系统的 http 协议关联不可靠
+    （注册表项可能存在但指向不可用的处理器，ShellExecute 还会弹系统错误框），
+    所以只要在本机找到 Edge/Chrome/Firefox 就直接拉起，完全不碰协议关联；
+    实在没有已知浏览器时才尝试 ShellExecute（NO_UI），最后弹窗给出地址。
     """
     if IS_WIN:
-        if _has_http_association() and _shell_open(url):
-            return
         for browser in (
             r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
             r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
@@ -1207,11 +1209,16 @@ def _open_browser(url):
             r"C:\Program Files (x86)\Mozilla Firefox\firefox.exe",
         ):
             if browser and os.path.exists(browser):
+                log("打开结果页面: " + browser)
                 try:
                     subprocess.Popen([browser, url])
                     return
-                except Exception:
-                    pass
+                except Exception as e:
+                    log("启动浏览器失败 %s: %s" % (browser, e))
+        if _has_http_association() and _shell_open(url):
+            log("已通过系统默认浏览器打开")
+            return
+        log("未找到已知浏览器且默认浏览器打开失败: " + url)
         try:
             ctypes.windll.user32.MessageBoxW(
                 None, "深清已在后台运行。\n\n请用浏览器打开：%s\n\n（关闭本提示不影响清理功能）" % url,
