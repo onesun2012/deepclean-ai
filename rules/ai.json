@@ -1,0 +1,494 @@
+{
+  "$comment": "深清 DeepClean AI 工具规则（编程助手 + 国内桌面应用）。字段: risk=safe|rebuildable|migrate|danger; danger 项会被锁定不清理; paths 支持 %ENV% 与通配符。欢迎 PR 补充工具，请同时填写中英文案。",
+  "tools": [
+    {
+      "id": "cursor",
+      "name": "Cursor",
+      "category": "assistant",
+      "processes": [
+        "Cursor.exe"
+      ]
+    },
+    {
+      "id": "claude",
+      "name": "Claude Code",
+      "category": "assistant",
+      "processes": [
+        "claude.exe"
+      ]
+    },
+    {
+      "id": "zcode",
+      "name": "ZCode",
+      "category": "assistant",
+      "processes": [
+        "ZCode.exe"
+      ]
+    },
+    {
+      "id": "codex",
+      "name": "Codex",
+      "category": "assistant",
+      "processes": [
+        "codex.exe"
+      ]
+    },
+    {
+      "id": "copilot",
+      "name": "GitHub Copilot",
+      "category": "assistant",
+      "processes": []
+    },
+    {
+      "id": "windsurf",
+      "name": "Windsurf",
+      "category": "assistant",
+      "processes": [
+        "Windsurf.exe"
+      ]
+    },
+    {
+      "id": "gemini",
+      "name": "Gemini CLI",
+      "category": "assistant",
+      "processes": []
+    },
+    {
+      "id": "openclaw",
+      "name": "OpenClaw",
+      "category": "assistant",
+      "processes": []
+    },
+    {
+      "id": "trae",
+      "name": "Trae",
+      "category": "assistant",
+      "processes": [
+        "Trae.exe"
+      ]
+    },
+    {
+      "id": "qoder",
+      "name": "Qoder",
+      "category": "assistant",
+      "processes": [
+        "Qoder.exe"
+      ]
+    },
+    {
+      "id": "codebuddy",
+      "name": "CodeBuddy",
+      "category": "assistant",
+      "processes": []
+    },
+    {
+      "id": "kimi",
+      "name": "Kimi 桌面版",
+      "category": "cn-app",
+      "processes": [
+        "Kimi.exe"
+      ]
+    },
+    {
+      "id": "doubao",
+      "name": "豆包",
+      "category": "cn-app",
+      "processes": [
+        "Doubao.exe"
+      ]
+    },
+    {
+      "id": "coze",
+      "name": "扣子",
+      "category": "cn-app",
+      "processes": [
+        "Coze.exe"
+      ]
+    },
+    {
+      "id": "ima",
+      "name": "腾讯 ima",
+      "category": "cn-app",
+      "processes": [
+        "ima.exe"
+      ]
+    },
+    {
+      "id": "quark",
+      "name": "夸克",
+      "category": "cn-app",
+      "processes": [
+        "Quark.exe"
+      ]
+    },
+    {
+      "id": "tabbit",
+      "name": "Tabbit",
+      "category": "cn-app",
+      "processes": [
+        "Tabbit.exe"
+      ]
+    },
+    {
+      "id": "updaters",
+      "name": "应用更新器",
+      "category": "cn-app",
+      "processes": []
+    }
+  ],
+  "buckets": [
+    {
+      "id": "cursor-cache",
+      "tool": "cursor",
+      "risk": "safe",
+      "min_age_min": 30,
+      "labelZh": "应用缓存",
+      "labelEn": "App cache",
+      "hintZh": "日志、GPU 缓存与扩展缓存。删后下次打开会重建。",
+      "hintEn": "Logs, GPU cache and extension cache. Rebuilds on next launch.",
+      "paths": [
+        "%APPDATA%\\Cursor\\Cache",
+        "%APPDATA%\\Cursor\\CachedData",
+        "%APPDATA%\\Cursor\\Code Cache",
+        "%APPDATA%\\Cursor\\GPUCache",
+        "%APPDATA%\\Cursor\\CachedExtensionVSIXs",
+        "%APPDATA%\\Cursor\\logs"
+      ]
+    },
+    {
+      "id": "cursor-index",
+      "tool": "cursor",
+      "risk": "rebuildable",
+      "min_age_min": 60,
+      "labelZh": "代码索引",
+      "labelEn": "Code index",
+      "hintZh": "工作区语义索引与存储。可删，下次打开项目会重新扫描。",
+      "hintEn": "Workspace semantic index and storage. Rebuilt when you reopen a project.",
+      "paths": [
+        "%APPDATA%\\Cursor\\User\\workspaceStorage",
+        "%APPDATA%\\Cursor\\User\\History"
+      ]
+    },
+    {
+      "id": "cursor-history",
+      "tool": "cursor",
+      "risk": "danger",
+      "locked": true,
+      "labelZh": "对话与 Composer 历史",
+      "labelEn": "Chat & Composer history",
+      "hintZh": "包含你的提示词和工作区上下文，默认不清理。",
+      "hintEn": "Contains prompts and workspace context. Locked by default.",
+      "paths": [
+        "%APPDATA%\\Cursor\\User\\globalStorage"
+      ]
+    },
+    {
+      "id": "claude-cache",
+      "tool": "claude",
+      "risk": "safe",
+      "min_age_min": 60,
+      "labelZh": "CLI 缓存",
+      "labelEn": "CLI cache",
+      "hintZh": "Shell 快照、文件历史与统计缓存，可安全删除。",
+      "hintEn": "Shell snapshots, file history and stats cache. Safe to delete.",
+      "paths": [
+        "%USERPROFILE%\\.claude\\shell-snapshots",
+        "%USERPROFILE%\\.claude\\file-history",
+        "%USERPROFILE%\\.claude\\statsig",
+        "%USERPROFILE%\\.claude\\downloads",
+        "%USERPROFILE%\\.claude\\plugins\\cache"
+      ]
+    },
+    {
+      "id": "claude-sessions",
+      "tool": "claude",
+      "risk": "danger",
+      "locked": true,
+      "labelZh": "会话记录",
+      "labelEn": "Session transcripts",
+      "hintZh": "本地对话记录，删除后无法从本机恢复。永不清理。",
+      "hintEn": "Local transcripts. Never cleaned by this tool.",
+      "paths": [
+        "%USERPROFILE%\\.claude\\projects"
+      ]
+    },
+    {
+      "id": "zcode-cache",
+      "tool": "zcode",
+      "risk": "safe",
+      "min_age_min": 60,
+      "labelZh": "CLI 缓存",
+      "labelEn": "CLI cache",
+      "hintZh": "插件缓存、日志与临时产物，配置与登录不受影响。",
+      "hintEn": "Plugin cache, logs and artifacts. Config and sign-in untouched.",
+      "paths": [
+        "%USERPROFILE%\\.zcode\\cli\\plugins\\cache",
+        "%USERPROFILE%\\.zcode\\cli\\log",
+        "%USERPROFILE%\\.zcode\\cli\\artifacts",
+        "%USERPROFILE%\\.zcode\\cli\\rollout",
+        "%USERPROFILE%\\.zcode\\cli\\statsig"
+      ]
+    },
+    {
+      "id": "codex-cache",
+      "tool": "codex",
+      "risk": "safe",
+      "min_age_min": 60,
+      "labelZh": "CLI 缓存",
+      "labelEn": "CLI cache",
+      "hintZh": "临时文件、日志与下载缓存，登录态不受影响。",
+      "hintEn": "Temp files, logs and download cache. Sign-in untouched.",
+      "paths": [
+        "%USERPROFILE%\\.codex\\.tmp",
+        "%USERPROFILE%\\.codex\\cache",
+        "%USERPROFILE%\\.codex\\log"
+      ]
+    },
+    {
+      "id": "codex-runtime",
+      "tool": "codex",
+      "risk": "rebuildable",
+      "min_age_min": 1440,
+      "labelZh": "运行时缓存",
+      "labelEn": "Runtime cache",
+      "hintZh": "下载的沙箱运行时，删除后下次启动会自动重新下载。",
+      "hintEn": "Downloaded sandbox runtimes. Re-downloaded on next launch.",
+      "paths": [
+        "%USERPROFILE%\\.cache\\codex-runtimes",
+        "%LOCALAPPDATA%\\OpenAI\\Codex"
+      ]
+    },
+    {
+      "id": "codex-sessions",
+      "tool": "codex",
+      "risk": "danger",
+      "locked": true,
+      "labelZh": "会话记录",
+      "labelEn": "Session transcripts",
+      "hintZh": "历史对话文件，删除后不可恢复。永不清理。",
+      "hintEn": "Chat history. Never cleaned by this tool.",
+      "paths": [
+        "%USERPROFILE%\\.codex\\sessions",
+        "%USERPROFILE%\\.codex\\archived_sessions"
+      ]
+    },
+    {
+      "id": "copilot-cache",
+      "tool": "copilot",
+      "risk": "safe",
+      "min_age_min": 60,
+      "labelZh": "补全缓存",
+      "labelEn": "Completion cache",
+      "hintZh": "VS Code 扩展缓存，不影响设置与登录。",
+      "hintEn": "VS Code extension cache. Does not touch settings or sign-in.",
+      "paths": [
+        "%APPDATA%\\Code\\CachedExtensionVSIXs"
+      ]
+    },
+    {
+      "id": "windsurf-cache",
+      "tool": "windsurf",
+      "risk": "safe",
+      "min_age_min": 60,
+      "labelZh": "应用缓存",
+      "labelEn": "App cache",
+      "hintZh": "网页缓存与扩展缓存，可安全删除。",
+      "hintEn": "Web and extension cache. Safe to delete.",
+      "paths": [
+        "%APPDATA%\\Windsurf\\Cache",
+        "%APPDATA%\\Windsurf\\CachedData",
+        "%APPDATA%\\Windsurf\\Code Cache",
+        "%APPDATA%\\Windsurf\\GPUCache",
+        "%APPDATA%\\Windsurf\\CachedExtensionVSIXs"
+      ]
+    },
+    {
+      "id": "gemini-cache",
+      "tool": "gemini",
+      "risk": "safe",
+      "min_age_min": 60,
+      "labelZh": "CLI 缓存",
+      "labelEn": "CLI cache",
+      "hintZh": "临时文件与日志，可安全删除。",
+      "hintEn": "Temp files and logs. Safe to delete.",
+      "paths": [
+        "%USERPROFILE%\\.gemini\\tmp",
+        "%USERPROFILE%\\.gemini\\cache"
+      ]
+    },
+    {
+      "id": "openclaw-cache",
+      "tool": "openclaw",
+      "risk": "safe",
+      "min_age_min": 60,
+      "labelZh": "日志与缓存",
+      "labelEn": "Logs & cache",
+      "hintZh": "运行日志与临时缓存，依赖包删除后重装即可。",
+      "hintEn": "Runtime logs and temp cache. Reinstallable dependencies.",
+      "paths": [
+        "%USERPROFILE%\\.openclaw\\log",
+        "%USERPROFILE%\\.openclaw\\logs",
+        "%USERPROFILE%\\.openclaw\\cache",
+        "%USERPROFILE%\\.openclaw\\tmp"
+      ]
+    },
+    {
+      "id": "trae-cache",
+      "tool": "trae",
+      "risk": "safe",
+      "min_age_min": 30,
+      "labelZh": "应用缓存",
+      "labelEn": "App cache",
+      "hintZh": "网页缓存与扩展安装包缓存，可安全删除。",
+      "hintEn": "Web cache and extension VSIX cache. Safe to delete.",
+      "paths": [
+        "%APPDATA%\\Trae\\CachedData",
+        "%APPDATA%\\Trae\\CachedExtensionVSIXs",
+        "%APPDATA%\\Trae\\Cache",
+        "%APPDATA%\\Trae\\Code Cache",
+        "%APPDATA%\\Trae\\GPUCache",
+        "%APPDATA%\\Trae CN\\CachedData",
+        "%APPDATA%\\Trae CN\\CachedExtensionVSIXs",
+        "%APPDATA%\\Trae CN\\Cache",
+        "%APPDATA%\\Trae CN\\Code Cache",
+        "%APPDATA%\\Trae CN\\GPUCache"
+      ]
+    },
+    {
+      "id": "qoder-cache",
+      "tool": "qoder",
+      "risk": "safe",
+      "min_age_min": 30,
+      "labelZh": "应用缓存",
+      "labelEn": "App cache",
+      "hintZh": "网页缓存与扩展缓存，可安全删除。",
+      "hintEn": "Web and extension cache. Safe to delete.",
+      "paths": [
+        "%APPDATA%\\Qoder\\CachedData",
+        "%APPDATA%\\Qoder\\CachedExtensionVSIXs",
+        "%APPDATA%\\Qoder\\Cache",
+        "%APPDATA%\\Qoder\\Code Cache",
+        "%APPDATA%\\Qoder\\GPUCache"
+      ]
+    },
+    {
+      "id": "codebuddy-cache",
+      "tool": "codebuddy",
+      "risk": "safe",
+      "min_age_min": 30,
+      "labelZh": "应用缓存",
+      "labelEn": "App cache",
+      "hintZh": "网页缓存与扩展缓存，可安全删除。",
+      "hintEn": "Web and extension cache. Safe to delete.",
+      "paths": [
+        "%APPDATA%\\CodeBuddy CN\\CachedData",
+        "%APPDATA%\\CodeBuddy CN\\Cache",
+        "%APPDATA%\\CodeBuddy CN\\Code Cache",
+        "%APPDATA%\\CodeBuddy CN\\GPUCache",
+        "%LOCALAPPDATA%\\CodeBuddyExtension\\Cache"
+      ]
+    },
+    {
+      "id": "kimi-cache",
+      "tool": "kimi",
+      "risk": "safe",
+      "min_age_min": 60,
+      "labelZh": "桌面端缓存",
+      "labelEn": "Desktop cache",
+      "hintZh": "图片与网页缓存，不影响登录和对话。",
+      "hintEn": "Image and web cache. Does not affect sign-in or chats.",
+      "paths": [
+        "%APPDATA%\\kimi-desktop\\Cache",
+        "%APPDATA%\\kimi-desktop\\Code Cache",
+        "%APPDATA%\\kimi-desktop\\GPUCache"
+      ]
+    },
+    {
+      "id": "doubao-cache",
+      "tool": "doubao",
+      "risk": "safe",
+      "min_age_min": 60,
+      "labelZh": "桌面端缓存",
+      "labelEn": "Desktop cache",
+      "hintZh": "图片与网页缓存，不影响登录和对话。",
+      "hintEn": "Image and web cache. Does not affect sign-in or chats.",
+      "paths": [
+        "%LOCALAPPDATA%\\Doubao\\User Data\\*\\Cache",
+        "%LOCALAPPDATA%\\Doubao\\User Data\\*\\Code Cache",
+        "%LOCALAPPDATA%\\Doubao\\User Data\\*\\GPUCache",
+        "%LOCALAPPDATA%\\Doubao\\User Data\\*\\GrShaderCache"
+      ]
+    },
+    {
+      "id": "coze-cache",
+      "tool": "coze",
+      "risk": "safe",
+      "min_age_min": 60,
+      "labelZh": "桌面端缓存",
+      "labelEn": "Desktop cache",
+      "hintZh": "图片与网页缓存，不影响登录和对话。",
+      "hintEn": "Image and web cache. Does not affect sign-in or chats.",
+      "paths": [
+        "%APPDATA%\\Coze\\Cache",
+        "%APPDATA%\\Coze\\Code Cache",
+        "%APPDATA%\\Coze\\GPUCache"
+      ]
+    },
+    {
+      "id": "ima-cache",
+      "tool": "ima",
+      "risk": "safe",
+      "min_age_min": 60,
+      "labelZh": "桌面端缓存",
+      "labelEn": "Desktop cache",
+      "hintZh": "图片与网页缓存，不影响登录和知识库。",
+      "hintEn": "Image and web cache. Does not affect sign-in or knowledge base.",
+      "paths": [
+        "%LOCALAPPDATA%\\ima.copilot\\Cache",
+        "%LOCALAPPDATA%\\ima.copilot\\Code Cache",
+        "%LOCALAPPDATA%\\ima.copilot\\GPUCache"
+      ]
+    },
+    {
+      "id": "quark-cache",
+      "tool": "quark",
+      "risk": "safe",
+      "min_age_min": 60,
+      "labelZh": "浏览器缓存",
+      "labelEn": "Browser cache",
+      "hintZh": "网页缓存，收藏与登录不受影响。",
+      "hintEn": "Web cache. Bookmarks and sign-in stay.",
+      "paths": [
+        "%LOCALAPPDATA%\\Quark\\User Data\\*\\Cache",
+        "%LOCALAPPDATA%\\Quark\\User Data\\*\\Code Cache"
+      ]
+    },
+    {
+      "id": "tabbit-cache",
+      "tool": "tabbit",
+      "risk": "safe",
+      "min_age_min": 60,
+      "labelZh": "浏览器缓存",
+      "labelEn": "Browser cache",
+      "hintZh": "网页缓存，书签与登录不受影响。",
+      "hintEn": "Web cache. Bookmarks and sign-in stay.",
+      "paths": [
+        "%LOCALAPPDATA%\\Tabbit\\User Data\\*\\Cache",
+        "%LOCALAPPDATA%\\Tabbit\\User Data\\*\\Code Cache"
+      ]
+    },
+    {
+      "id": "updaters",
+      "tool": "updaters",
+      "risk": "safe",
+      "min_age_min": 720,
+      "labelZh": "应用更新包缓存",
+      "labelEn": "Updater packages",
+      "hintZh": "各桌面应用更新器下载的安装包残留，安装完成即无用。",
+      "hintEn": "Installer leftovers from desktop app updaters. Useless once installed.",
+      "paths": [
+        "%LOCALAPPDATA%\\*-updater"
+      ]
+    }
+  ]
+}

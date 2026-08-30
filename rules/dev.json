@@ -1,0 +1,66 @@
+{
+  "$comment": "深清 DeepClean 开发缓存规则。包管理器/IDE/构建工具的可重建缓存，以及 Docker WSL 虚拟盘（建议压缩或迁盘，不要直接删）。",
+  "tools": [
+    { "id": "npm", "name": "npm / pnpm", "category": "dev", "processes": [] },
+    { "id": "docker", "name": "Docker Desktop", "category": "dev", "processes": ["Docker Desktop.exe"] },
+    { "id": "python", "name": "pip / uv", "category": "dev", "processes": [] },
+    { "id": "jetbrains", "name": "JetBrains", "category": "dev", "processes": [] },
+    { "id": "playwright", "name": "Playwright", "category": "dev", "processes": [] },
+    { "id": "electron", "name": "Electron", "category": "dev", "processes": [] },
+    { "id": "nuget", "name": "NuGet", "category": "dev", "processes": [] }
+  ],
+  "buckets": [
+    {
+      "id": "npm-store", "tool": "npm", "risk": "rebuildable", "min_age_min": 60,
+      "labelZh": "包缓存", "labelEn": "Package store",
+      "hintZh": "npm/pnpm/Yarn 的下载缓存，可重建。全局安装的命令行工具不受影响。",
+      "hintEn": "npm/pnpm/Yarn download caches. Rebuildable. Global CLI installs stay.",
+      "paths": [
+        "%LOCALAPPDATA%\\npm-cache", "%LOCALAPPDATA%\\pnpm-cache", "%USERPROFILE%\\.pnpm-store",
+        "%LOCALAPPDATA%\\pnpm\\store", "%LOCALAPPDATA%\\Yarn\\Cache", "%USERPROFILE%\\.npm\\_cacache"
+      ]
+    },
+    {
+      "id": "docker-disk", "tool": "docker", "risk": "migrate",
+      "labelZh": "WSL 虚拟盘", "labelEn": "WSL virtual disk",
+      "hintZh": "镜像与构建缓存。建议在 Docker 设置里压缩或迁盘，不要直接删 vhdx 文件。",
+      "hintEn": "Images and build cache. Compact from Docker settings or relocate — do not delete the vhdx.",
+      "paths": ["%LOCALAPPDATA%\\Docker\\wsl"]
+    },
+    {
+      "id": "python-cache", "tool": "python", "risk": "rebuildable", "min_age_min": 60,
+      "labelZh": "包下载缓存", "labelEn": "Package download cache",
+      "hintZh": "pip/uv 的下载缓存，可重建。已安装的环境不受影响。",
+      "hintEn": "pip/uv download caches. Rebuildable. Installed environments stay.",
+      "paths": ["%LOCALAPPDATA%\\pip\\Cache", "%LOCALAPPDATA%\\uv\\cache", "%LOCALAPPDATA%\\pypa"]
+    },
+    {
+      "id": "jetbrains-caches", "tool": "jetbrains", "risk": "rebuildable", "min_age_min": 1440,
+      "labelZh": "IDE 索引与缓存", "labelEn": "IDE indexes & caches",
+      "hintZh": "IDE 索引与编译缓存。删除后首次打开项目需要重建索引。",
+      "hintEn": "IDE indexes and compile caches. First launch after cleanup re-indexes.",
+      "paths": ["%LOCALAPPDATA%\\JetBrains\\*\\caches", "%LOCALAPPDATA%\\JetBrains\\*\\index", "%LOCALAPPDATA%\\JetBrains\\*\\tmp"]
+    },
+    {
+      "id": "playwright-browsers", "tool": "playwright", "risk": "rebuildable", "min_age_min": 1440,
+      "labelZh": "测试浏览器", "labelEn": "Test browsers",
+      "hintZh": "Playwright 下载的浏览器二进制，可重新下载（npx playwright install）。",
+      "hintEn": "Browser binaries downloaded by Playwright. Reinstall with npx playwright install.",
+      "paths": ["%LOCALAPPDATA%\\ms-playwright"]
+    },
+    {
+      "id": "electron-cache", "tool": "electron", "risk": "rebuildable", "min_age_min": 1440,
+      "labelZh": "构建缓存", "labelEn": "Build cache",
+      "hintZh": "Electron 与 electron-builder 的二进制下载缓存，可重建。",
+      "hintEn": "Electron and electron-builder binary caches. Rebuildable.",
+      "paths": ["%LOCALAPPDATA%\\electron", "%LOCALAPPDATA%\\electron-builder"]
+    },
+    {
+      "id": "nuget-cache", "tool": "nuget", "risk": "rebuildable", "min_age_min": 1440,
+      "labelZh": "包缓存", "labelEn": "Package cache",
+      "hintZh": "NuGet 下载缓存与全局包文件夹，删除后构建时自动还原。",
+      "hintEn": "NuGet http cache and global packages folder. Restored on next build.",
+      "paths": ["%LOCALAPPDATA%\\NuGet\\v3-cache", "%LOCALAPPDATA%\\NuGet\\plugins-cache", "%USERPROFILE%\\.nuget\\packages"]
+    }
+  ]
+}

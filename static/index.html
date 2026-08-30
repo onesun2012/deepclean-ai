@@ -1,0 +1,1025 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>深清 DeepClean — C 盘被 AI 工具吃满了？</title>
+<link rel="icon" href="data:,">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+:root{
+  --bg:#090b0a; --sidebar:#101412; --surface:#151a17; --surface2:#1c221e;
+  --fg:#e7ede8; --muted:#8d968f; --subtle:#5e665f; --border:#232a26;
+  --accent:#6ed9a8; --accent-fg:#062016; --accent-dim:#163328;
+  --danger:#e85d65; --danger-dim:#3a1a1c;
+  --warning:#d4a054; --warning-dim:#3a2e18;
+  --info:#7ba3c4; --info-dim:#1a2833;
+  --mask:rgba(0,0,0,.6); --hairline:0 0 0 1px rgba(231,237,232,.08);
+  --hairline-hover:0 0 0 1px rgba(231,237,232,.14);
+}
+body.light{
+  --bg:#f5f7f5; --sidebar:#ecefee; --surface:#ffffff; --surface2:#e7ece8;
+  --fg:#1a211c; --muted:#5a6560; --subtle:#8a938d; --border:#dde3de;
+  --accent:#0e9f63; --accent-fg:#ffffff; --accent-dim:#d9f2e5;
+  --danger:#d64550; --danger-dim:#fbe3e4;
+  --warning:#a8741c; --warning-dim:#f7ecd4;
+  --info:#3a6d96; --info-dim:#e1ecf5;
+  --mask:rgba(20,30,25,.4); --hairline:0 0 0 1px rgba(26,33,28,.10);
+  --hairline-hover:0 0 0 1px rgba(26,33,28,.18);
+}
+body{font-family:Outfit,"Segoe UI","Microsoft YaHei",system-ui,sans-serif;display:flex;min-width:1080px;background:var(--bg);color:var(--fg);overflow:hidden;-webkit-font-smoothing:antialiased}
+.mono{font-family:"IBM Plex Mono",Consolas,monospace}
+.tabnum{font-variant-numeric:tabular-nums}
+button{cursor:pointer;font-family:inherit}
+h1,h2,h3{text-wrap:balance}
+
+/* ============ 侧栏 ============ */
+.sidebar{width:240px;flex:none;display:flex;flex-direction:column;border-right:1px solid var(--border);background:var(--sidebar)}
+.logo-row{display:flex;align-items:center;gap:12px;padding:20px 16px 4px}
+.logo-badge{width:36px;height:36px;flex:none;border-radius:12px;background:var(--accent);display:grid;place-items:center;color:var(--accent-fg)}
+.logo-badge svg{width:20px;height:20px}
+.logo-txt .b1{font-size:15px;font-weight:600;letter-spacing:-.01em}
+.logo-txt .b2{font-size:12px;color:var(--muted)}
+.diskcard{margin:16px 12px 4px;width:calc(100% - 24px);border:none;background:var(--surface);border-radius:14px;box-shadow:var(--hairline);padding:12px 14px;text-align:left;transition:box-shadow .15s}
+.diskcard:hover{box-shadow:var(--hairline-hover)}
+.diskcard .row1{display:flex;justify-content:space-between;align-items:baseline;font-size:12px;color:var(--muted)}
+.diskcard .row1 .crit{font-weight:500}
+.diskcard .row1 .crit.danger{color:var(--danger)}
+.diskcard .row1 .crit.warn{color:var(--warning)}
+.diskcard .row1 .crit.ok{color:var(--accent)}
+.diskcard .free{display:flex;align-items:baseline;gap:6px;margin-top:2px}
+.diskcard .free b{font-size:19px;font-weight:500;letter-spacing:-.02em}
+.diskcard .bar{height:4px;border-radius:99px;background:var(--surface2);overflow:hidden;margin-top:9px}
+.diskcard .bar i{display:block;height:100%;border-radius:99px;background:var(--accent)}
+.diskcard .pct{font-size:11px;color:var(--subtle);margin-top:6px;font-variant-numeric:tabular-nums}
+.nav{flex:1;padding:8px;display:flex;flex-direction:column;gap:2px}
+.nav-item{position:relative;display:flex;align-items:center;gap:12px;height:44px;padding:0 12px;border:none;border-radius:12px;background:transparent;color:var(--muted);font-size:13.5px;text-align:left;transition:background .15s,color .15s}
+.nav-item:hover{background:color-mix(in oklab,var(--surface) 60%,transparent);color:var(--fg)}
+.nav-item.active{background:var(--surface);color:var(--fg)}
+.nav-item .ind{position:absolute;left:0;top:50%;transform:translateY(-50%);width:2px;height:20px;border-radius:99px;background:var(--accent);opacity:0}
+.nav-item.active .ind{opacity:1}
+.nav-item svg{width:16px;height:16px;flex:none}
+.nav-item .dot{width:6px;height:6px;border-radius:99px;background:var(--danger);margin-left:auto}
+.nav-item .spacer{flex:1}
+.nav-foot{border-top:1px solid var(--border);padding:8px;display:flex;flex-direction:column;gap:2px}
+
+/* ============ 主区 ============ */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.page{flex:1;overflow-y:auto;position:relative}
+.page::-webkit-scrollbar{width:8px}
+.page::-webkit-scrollbar-thumb{background:var(--surface2);border-radius:4px}
+.admin-strip{display:none;align-items:center;gap:12px;background:var(--warning-dim);color:var(--warning);font-size:12.5px;padding:9px 24px;border-bottom:1px solid var(--border);flex:none}
+.admin-strip.show{display:flex}
+.admin-strip b{font-weight:600}
+.btn{border:none;border-radius:12px;padding:9px 18px;font-size:13px;font-weight:500;transition:filter .15s,box-shadow .15s,background .15s;display:inline-flex;align-items:center;gap:7px;justify-content:center}
+.btn svg{width:15px;height:15px}
+.btn.primary{background:var(--accent);color:var(--accent-fg)}
+.btn.primary:hover{filter:brightness(1.06)}
+.btn.outline{background:transparent;box-shadow:var(--hairline);color:var(--fg)}
+.btn.outline:hover{box-shadow:var(--hairline-hover)}
+.btn.ghost{background:transparent;color:var(--muted)}
+.btn.ghost:hover{color:var(--fg);background:var(--surface2)}
+.btn.sm{padding:6px 12px;font-size:12px;border-radius:10px}
+.btn.lg{padding:13px 26px;font-size:14px;border-radius:14px}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.kicker{font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase}
+.empty-wrap{min-height:60vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px}
+.empty-ic{width:56px;height:56px;border-radius:18px;background:var(--surface);box-shadow:var(--hairline);display:grid;place-items:center;color:var(--accent)}
+.empty-ic svg{width:24px;height:24px}
+
+/* ============ 首页 ============ */
+.home-wrap{max-width:1080px;margin:0 auto;padding:36px 40px;display:flex;flex-direction:column;gap:32px}
+.home-grid{display:grid;grid-template-columns:minmax(0,1fr) 16rem;gap:44px;align-items:start}
+.home-grid .kicker.danger{color:var(--danger)}
+.home-grid .kicker.ok{color:var(--accent)}
+.h-display{font-size:34px;font-weight:500;letter-spacing:-.02em;margin-top:8px;line-height:1.15}
+.h-sub{margin-top:12px;font-size:13.5px;color:var(--muted);line-height:1.7;max-width:420px}
+.where{margin-top:34px}
+.sec-label{font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--subtle);margin-bottom:12px}
+.segbar{display:flex;height:8px;border-radius:99px;overflow:hidden;background:var(--surface2)}
+.segbar i{display:block;height:100%}
+.legend{margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:10px 28px;list-style:none}
+.legend li{display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:13px}
+.legend .lb{display:flex;align-items:center;gap:8px;color:var(--muted)}
+.legend .lb i{width:6px;height:6px;border-radius:99px}
+.legend .v{font-variant-numeric:tabular-nums}
+.gauge-col{display:flex;flex-direction:column;align-items:center;gap:24px}
+.gauge{position:relative;display:grid;place-items:center;width:208px;height:208px}
+.gauge .ring{position:absolute;inset:0;border-radius:50%}
+.gauge .hole{position:absolute;inset:12px;border-radius:50%;background:var(--bg)}
+.gauge .txt{position:relative;text-align:center}
+.gauge .pct{font-size:46px;font-weight:500;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.gauge .lb{font-size:13px;color:var(--muted);margin-top:2px}
+.gauge .st{font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;margin-top:4px}
+.stat3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;width:100%}
+.stat3 .st-card{background:var(--surface);box-shadow:var(--hairline);border-radius:12px;padding:12px 6px;text-align:center}
+.stat3 .v{font-size:14px;font-weight:500;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.stat3 .k{font-size:11px;color:var(--muted);margin-top:3px}
+.v.warn{color:var(--warning)} .v.danger{color:var(--danger)}
+.modes{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.mode-card{border:none;border-radius:16px;padding:16px;text-align:left;background:var(--surface);box-shadow:var(--hairline);transition:box-shadow .15s,background .15s}
+.mode-card:hover{box-shadow:var(--hairline-hover)}
+.mode-card.on{background:var(--surface2);box-shadow:0 0 0 1px var(--accent)}
+.mode-card .mh{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.mode-card .mt{font-size:13.5px;font-weight:500}
+.mode-card .badge{background:var(--accent-dim);color:var(--accent);border-radius:99px;padding:2px 9px;font-size:11px;font-weight:500}
+.mode-card p{margin-top:9px;font-size:12.5px;color:var(--muted);line-height:1.6}
+.home-cta{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+
+/* ============ 结果视图（AI 专清/本地模型/开发缓存/聊天/系统） ============ */
+.res-head{border-bottom:1px solid var(--border);padding:20px 40px 18px}
+.res-top{display:flex;flex-wrap:wrap;justify-content:space-between;gap:16px;align-items:flex-start}
+.res-head .kicker{color:var(--accent)}
+.h-title{font-size:26px;font-weight:500;letter-spacing:-.02em;margin-top:6px}
+.h-title b{color:var(--accent);font-weight:500;font-variant-numeric:tabular-nums}
+.h-sub2{margin-top:8px;font-size:13px;color:var(--muted)}
+.h-sub2 .warn-num{color:var(--warning);font-variant-numeric:tabular-nums}
+.mode-row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;margin-top:18px}
+.modeswitch{display:inline-flex;background:var(--surface2);border-radius:12px;padding:4px;box-shadow:var(--hairline)}
+.modeswitch button{border:none;background:transparent;border-radius:9px;padding:8px 14px;font-size:13px;color:var(--muted);transition:background .15s,color .15s,box-shadow .15s}
+.modeswitch button.on{background:var(--surface);color:var(--fg);box-shadow:var(--hairline)}
+.mode-desc{font-size:12px;color:var(--subtle)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px}
+.chip{border:none;height:32px;border-radius:99px;padding:0 14px;font-size:12px;font-weight:500;background:var(--surface2);color:var(--muted);transition:background .15s,color .15s}
+.chip:hover{color:var(--fg)}
+.chip.on{background:var(--accent);color:var(--accent-fg)}
+.res-body{flex:1;padding:20px 40px 110px}
+.tool-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+@media (max-width:1360px){.tool-grid{grid-template-columns:1fr}}
+.toolcard{background:var(--surface);border-radius:16px;padding:16px;box-shadow:var(--hairline);transition:box-shadow .15s,opacity .15s}
+.toolcard.has-sel{box-shadow:0 0 0 1px color-mix(in oklab,var(--accent) 45%,transparent)}
+.toolcard.locked{opacity:.72}
+.tc-head{display:flex;gap:12px;align-items:flex-start}
+.tc-ic{width:40px;height:40px;flex:none;border-radius:12px;background:var(--surface2);color:var(--muted);display:grid;place-items:center}
+.tc-ic svg{width:17px;height:17px}
+.tc-mid{flex:1;min-width:0}
+.tc-name-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.tc-name{font-size:13.5px;font-weight:500}
+.run-badge{background:var(--warning-dim);color:var(--warning);border-radius:99px;padding:2px 9px;font-size:11px;font-weight:500}
+.tc-sub{font-size:11.5px;color:var(--muted);margin-top:3px}
+.tc-right{text-align:right;flex:none}
+.tc-size{font-size:13.5px;font-weight:500;font-variant-numeric:tabular-nums}
+.safety{display:inline-flex;align-items:center;white-space:nowrap;border-radius:99px;padding:2px 9px;font-size:11px;font-weight:500}
+.safety.safe{background:var(--accent-dim);color:var(--accent)}
+.safety.rebuildable{background:var(--warning-dim);color:var(--warning)}
+.safety.migrate{background:var(--info-dim);color:var(--info)}
+.safety.danger{background:var(--danger-dim);color:var(--danger)}
+.tc-toggle{margin-top:12px;width:100%;height:34px;border:none;background:transparent;border-radius:10px;display:flex;align-items:center;justify-content:space-between;padding:0 4px;font-size:12px;color:var(--muted)}
+.tc-toggle:hover{color:var(--fg)}
+.tc-toggle svg{width:15px;height:15px;transition:transform .15s}
+.tc-toggle.open svg{transform:rotate(180deg)}
+.bucket-list{margin-top:4px;display:flex;flex-direction:column;gap:6px;list-style:none}
+.bucket-row{display:flex;gap:12px;align-items:flex-start;background:var(--surface2);border-radius:12px;padding:10px 12px}
+.bk-check{width:20px;height:20px;flex:none;margin-top:2px;border-radius:7px;box-shadow:var(--hairline);background:var(--surface2);border:none;display:grid;place-items:center;color:var(--accent-fg);transition:background .15s}
+.bucket-row .bk-check:not(.on):not(.locked){background:var(--bg)}
+.bk-check.on{background:var(--accent)}
+.bk-check.locked{color:var(--subtle);cursor:default}
+.bk-check svg{width:12px;height:12px}
+.bk-check .bar-ind{width:10px;height:2px;border-radius:2px;background:var(--accent-fg)}
+.bk-mid{flex:1;min-width:0}
+.bk-name-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.bk-name{font-size:13px}
+.bk-size{margin-left:auto;font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums;flex:none}
+.bk-hint{font-size:11.5px;color:var(--subtle);line-height:1.6;margin-top:3px}
+.bk-path{font-size:11px;color:var(--subtle);margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:6px}
+.bk-path code{font-family:"IBM Plex Mono",Consolas,monospace;overflow:hidden;text-overflow:ellipsis}
+.bk-roots-btn{border:none;background:transparent;color:var(--info);font-size:11px;flex:none;padding:0}
+.bk-roots-btn:hover{text-decoration:underline}
+.actionbar{position:sticky;bottom:0;z-index:20;border-top:1px solid var(--border);background:color-mix(in oklab,var(--bg) 88%,transparent);backdrop-filter:blur(10px);padding:12px 40px}
+.actionbar .in{max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.actionbar .sum{font-size:13px;color:var(--muted)}
+.actionbar .sum b{color:var(--fg);font-variant-numeric:tabular-nums;font-weight:500}
+.actionbar .mig{font-size:12px;color:var(--info);margin-left:8px;font-variant-numeric:tabular-nums}
+.actionbar .btns{display:flex;gap:8px}
+
+/* ============ 弹窗 / toast ============ */
+.mask{position:fixed;inset:0;z-index:50;display:none;place-items:center;background:var(--mask);backdrop-filter:blur(2px)}
+.mask.show{display:grid}
+.modal{position:relative;width:100%;max-width:460px;max-height:86vh;overflow-y:auto;background:var(--surface);border-radius:24px;padding:24px;box-shadow:var(--hairline)}
+.modal::-webkit-scrollbar{width:6px}
+.modal .x{position:absolute;top:16px;right:16px;width:34px;height:34px;border:none;border-radius:10px;background:transparent;color:var(--muted);display:grid;place-items:center}
+.modal .x:hover{background:var(--surface2);color:var(--fg)}
+.modal .x svg{width:15px;height:15px}
+.modal h2{font-size:19px;font-weight:500;letter-spacing:-.01em}
+.modal .sub{font-size:12.5px;color:var(--muted);line-height:1.7;margin-top:8px}
+.modal .list{margin:14px 0;max-height:250px;overflow-y:auto;border:1px solid var(--border);border-radius:12px;padding:4px 12px}
+.modal .list::-webkit-scrollbar{width:6px}
+.mrow{display:flex;align-items:center;gap:10px;padding:8px 2px;font-size:12.5px;border-bottom:1px dashed var(--border)}
+.mrow:last-child{border-bottom:none}
+.mrow .nm{color:var(--fg);word-break:break-all}
+.mrow .sz{margin-left:auto;color:var(--muted);font-variant-numeric:tabular-nums;flex:none}
+.mrow .st{margin-left:auto;font-size:12px;color:var(--muted);flex:none}
+.mrow .st.done{color:var(--accent)} .mrow .st.warn{color:var(--warning)}
+.warnbox{background:var(--warning-dim);color:var(--warning);border-radius:10px;padding:9px 12px;font-size:12px;line-height:1.6;margin-bottom:4px}
+.total-line{font-size:13px;color:var(--muted);margin-top:10px}
+.total-line b{color:var(--accent);font-size:15px;font-variant-numeric:tabular-nums;font-weight:500}
+.modal-btns{display:flex;gap:10px;justify-content:flex-end;margin-top:16px}
+.success-big{font-size:30px;font-weight:500;letter-spacing:-.02em;color:var(--accent);font-variant-numeric:tabular-nums;margin-top:12px}
+.donate-box{margin-top:20px;background:var(--surface2);border-radius:16px;padding:16px}
+.donate-box p{font-size:12.5px;line-height:1.7}
+.pay-grid{margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.pay-slot{height:52px;display:grid;place-items:center;background:var(--surface);border-radius:12px;box-shadow:var(--hairline);font-size:12px;color:var(--muted)}
+.donate-off{margin-top:10px;display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--subtle);cursor:pointer}
+.donate-off input{accent-color:var(--accent)}
+.set-row{margin-top:18px}
+.set-label{font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--subtle);margin-bottom:10px}
+.seg{display:inline-flex;background:var(--surface2);border-radius:11px;padding:3px;box-shadow:var(--hairline)}
+.seg button{border:none;background:transparent;border-radius:9px;padding:6px 14px;font-size:12.5px;color:var(--muted)}
+.seg button.on{background:var(--surface);color:var(--fg);box-shadow:var(--hairline)}
+body.light .seg button.on{background:#fff}
+.roots-row{cursor:pointer}
+.toast{position:fixed;top:18px;left:50%;transform:translateX(-50%) translateY(-70px);background:rgba(20,28,24,.94);color:#fff;font-size:13px;padding:9px 20px;border-radius:20px;z-index:99;transition:.3s;pointer-events:none}
+.toast.show{transform:translateX(-50%) translateY(0)}
+/* 扫描遮罩 */
+.scanmask{position:fixed;inset:0;z-index:60;display:none;place-items:center;background:var(--mask);backdrop-filter:blur(3px)}
+.scanmask.show{display:grid}
+.scanbox{text-align:center;color:var(--fg)}
+.scanbox .spin{width:52px;height:52px;margin:0 auto 18px;border-radius:50%;border:3px solid var(--surface2);border-top-color:var(--accent);animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.scanbox .t{font-size:16px;font-weight:500}
+.scanbox .cur{font-size:12px;color:var(--muted);margin-top:8px;max-width:520px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.scanbox .hint{font-size:11.5px;color:var(--subtle);margin-top:6px}
+.scanbox .prog{width:320px;height:4px;border-radius:99px;background:var(--surface2);margin:16px auto 0;overflow:hidden}
+.scanbox .prog i{display:block;height:100%;background:var(--accent);border-radius:99px;transition:width .4s}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.stagger>*{animation:rise .4s cubic-bezier(.22,1,.36,1) both}
+.stagger>*:nth-child(2){animation-delay:.04s}.stagger>*:nth-child(3){animation-delay:.08s}
+.stagger>*:nth-child(4){animation-delay:.12s}.stagger>*:nth-child(5){animation-delay:.16s}
+.stagger>*:nth-child(6){animation-delay:.2s}
+</style>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="logo-row">
+    <div class="logo-badge" id="logoIcon"></div>
+    <div class="logo-txt"><div class="b1" id="t-brand">深清</div><div class="b2">DeepClean</div></div>
+  </div>
+  <button class="diskcard" id="diskCard" title=""></button>
+  <nav class="nav" id="nav"></nav>
+  <div class="nav-foot">
+    <button class="nav-item" id="btnThemeFoot"><span class="ind"></span><span id="themeIc"></span><span class="spacer"></span><span data-i18n="theme">深 / 浅色</span></button>
+    <button class="nav-item" id="btnSettings"><span class="ind"></span><span id="setIc"></span><span data-i18n="settings">设置</span></button>
+  </div>
+</aside>
+
+<div class="main">
+  <div class="admin-strip" id="adminStrip"></div>
+  <section class="page" id="page"></section>
+</div>
+
+<!-- 扫描遮罩 -->
+<div class="scanmask" id="scanMask">
+  <div class="scanbox">
+    <div class="spin"></div>
+    <div class="t" id="scanTitle">正在扫描 AI 工作站</div>
+    <div class="cur mono" id="scanCur"></div>
+    <div class="hint" data-i18n="scanningHint">只读取文件大小与日期，不会写入或删除。</div>
+    <div class="prog"><i id="scanProg" style="width:0%"></i></div>
+  </div>
+</div>
+
+<!-- 确认清理 -->
+<div class="mask" id="maskConfirm">
+  <div class="modal">
+    <h2 data-i18n="confirmTitle">确认清理</h2>
+    <p class="sub" data-i18n="confirmBody">将删除已选的可重建缓存。模型、对话与危险项不会被动。</p>
+    <div class="list" id="confirmList"></div>
+    <div id="confirmWarn"></div>
+    <div class="total-line"><span data-i18n="expectFree">预计释放：</span><b id="confirmTotal">0</b></div>
+    <div class="modal-btns">
+      <button class="btn ghost" id="btnConfirmCancel" data-i18n="cancel">取消</button>
+      <button class="btn primary" id="btnConfirmOk" data-i18n="confirmAction">确认清理</button>
+    </div>
+  </div>
+</div>
+
+<!-- 清理成功 -->
+<div class="mask" id="maskSuccess">
+  <div class="modal">
+    <button class="x" id="btnSuccessClose"></button>
+    <h2 data-i18n="successTitle">清理完成</h2>
+    <div class="success-big" id="successFreed">0</div>
+    <p class="sub" id="successLine"></p>
+    <div class="donate-box" id="donateBox">
+      <p data-i18n="donateLine">如果这让你今晚能继续跑模型，可以请作者喝杯咖啡。</p>
+      <div class="pay-grid">
+        <div class="pay-slot" data-i18n="wechat">微信赞赏</div>
+        <div class="pay-slot" data-i18n="alipay">支付宝</div>
+        <div class="pay-slot">GitHub Sponsors</div>
+        <div class="pay-slot" data-i18n="afdian">爱发电</div>
+      </div>
+      <label class="donate-off"><input type="checkbox" id="donateOff"> <span data-i18n="donateNever">清理完成后不再显示打赏</span></label>
+    </div>
+    <div class="modal-btns"><button class="btn outline" id="btnSuccessDone" data-i18n="close">关闭</button></div>
+  </div>
+</div>
+
+<!-- 目录明细 / 排除 -->
+<div class="mask" id="maskRoots">
+  <div class="modal">
+    <button class="x" id="btnRootsClose"></button>
+    <h2 id="rootsTitle">目录明细</h2>
+    <p class="sub" data-i18n="rootsSub">勾选的目录参与清理，取消勾选的目录本次将被跳过。</p>
+    <div class="list" id="rootsList" style="max-height:300px"></div>
+    <div class="total-line" id="rootsTotal"></div>
+    <div class="modal-btns">
+      <button class="btn ghost" id="btnRootsCancel" data-i18n="cancel">取消</button>
+      <button class="btn primary" id="btnRootsOk" data-i18n="ok">确定</button>
+    </div>
+  </div>
+</div>
+
+<!-- 迁移 -->
+<div class="mask" id="maskMove">
+  <div class="modal">
+    <button class="x" id="btnMoveClose"></button>
+    <h2 data-i18n="migrateToD">迁移到 D 盘</h2>
+    <p class="sub" data-i18n="moveSub">把模型目录剪切到目标盘，并在原位置建立目录联接。应用无需任何配置即可继续使用；迁移过程任何一步失败都会回滚，原文件不受影响。</p>
+    <div class="list" id="moveList"></div>
+    <div class="total-line" id="moveTarget"></div>
+    <div class="modal-btns">
+      <button class="btn ghost" id="btnMoveCancel" data-i18n="cancel">取消</button>
+      <button class="btn primary" id="btnMoveStart" data-i18n="moveStart">开始迁移</button>
+    </div>
+  </div>
+</div>
+
+<!-- 设置 -->
+<div class="mask" id="maskSettings">
+  <div class="modal">
+    <button class="x" id="btnSettingsClose"></button>
+    <h2 data-i18n="settings">设置</h2>
+    <div class="set-row">
+      <div class="set-label" data-i18n="language">语言</div>
+      <div class="seg" id="langSeg">
+        <button data-lang="zh">简体中文</button><button data-lang="en">English</button>
+      </div>
+    </div>
+    <div class="set-row">
+      <div class="set-label" data-i18n="theme">主题</div>
+      <div class="seg" id="themeSeg">
+        <button data-theme="dark" data-i18n="dark">深色</button><button data-theme="light" data-i18n="light">浅色</button>
+      </div>
+    </div>
+    <div class="set-row">
+      <div class="set-label" data-i18n="donate">支持作者</div>
+      <div class="pay-grid" style="margin-top:0">
+        <div class="pay-slot" data-i18n="wechat">微信赞赏</div>
+        <div class="pay-slot" data-i18n="alipay">支付宝</div>
+        <div class="pay-slot">GitHub Sponsors</div>
+        <div class="pay-slot" data-i18n="afdian">爱发电</div>
+      </div>
+      <p class="sub" style="margin-top:10px" data-i18n="rulesNote">清理规则全部来自开源 rules/ 目录，路径、安全级与理由逐条可审计。欢迎贡献新工具规则。</p>
+    </div>
+    <div class="modal-btns"><button class="btn outline" id="btnSettingsOk" data-i18n="close">关闭</button></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ======================= i18n ======================= */
+const I18N = {
+zh: {brand:"深清",tagline:"C 盘被 AI 工具吃满了？",disk:"C 盘",freeOf:"可用",ofTotal:"共",critical:"危急",home:"首页",ai:"AI 专清",models:"本地模型",dev:"开发缓存",chat:"聊天应用",system:"系统垃圾",settings:"设置",theme:"深 / 浅色",dark:"深色",light:"浅色",used:"已使用",total:"总容量",available:"可用空间",almostFull:"C 盘即将满载",almostFullBody:"空间大户是 AI 工具与模型，不是微信。",healthyTitle:"C 盘空间健康",healthyBody:"当前空间充裕。AI 工具与模型是增长最快的大户，定期扫描可以防患于未然。",where:"空间去哪了",segAi:"AI 工具与模型",segSystem:"系统谨慎项",segChat:"聊天应用",segOther:"其他文件",segHint:"扫描后按清理规则归类估算",ctaScan:"扫描 AI 与开发缓存",ctaSystem:"仅查看系统垃圾",modeSafe:"安全一键",modeSafeDesc:"只删可重建缓存，不动模型与对话。",modeWork:"AI 工作站",modeWorkDesc:"清缓存，并把闲置模型列为可迁移。",modeExpert:"专家",modeExpertDesc:"露出 WinSxS 等危险项，全部默认不勾。",recommended:"推荐",scanDone:"扫描完成",safeClean:"可安全清理",alsoNeed:"另有",needReview:"需确认或迁移",rescan:"重新扫描",stop:"停止",all:"全部",assistants:"编程助手",localModels:"本地模型",cnApps:"国内应用",lastUsed:"上次使用",daysAgo:"天前",today:"今天",running:"运行中",unknown:"未知",selected:"已选",items:"项",cleanSelected:"清理已选",migrateToD:"迁移到 D 盘",emptyScan:"还没有扫描结果",emptyScanBody:"先扫描 AI 与开发缓存。默认只读，不会删除任何文件。",scanning:"正在扫描 AI 工作站",scanningHint:"只读取文件大小与日期，不会写入或删除。",confirmTitle:"确认清理",confirmBody:"将删除已选的可重建缓存。模型、对话与危险项不会被动；被占用或保留期内的文件会自动跳过。",expectFree:"预计释放：",confirmAction:"确认清理",cancel:"取消",close:"关闭",successTitle:"清理完成",successLine:"C 盘可用空间已刷新。",donateLine:"如果这让你今晚能继续跑模型，可以请作者喝杯咖啡。",wechat:"微信赞赏",alipay:"支付宝",afdian:"爱发电",donateNever:"清理完成后不再显示打赏",ok:"确定",rootsSub:"勾选的目录参与清理，取消勾选的目录本次将被跳过。",noRoots:"扫描后可查看目录明细",moveSub:"把模型目录剪切到目标盘，并在原位置建立目录联接。应用无需任何配置即可继续使用；任何一步失败都会回滚，原文件不受影响。",moveStart:"开始迁移",moveRunning:"迁移中…",moveTarget:"迁移到：",language:"语言",donate:"支持作者",rulesNote:"清理规则全部来自开源 rules/ 目录，路径、安全级与理由逐条可审计。欢迎贡献新工具规则。",safetySafe:"安全",safetyRebuildable:"可重建",safetyMigrate:"迁移",safetyDanger:"危险",lockedTip:"已锁定 · 永不清理",migrateTip:"建议迁移而非删除",movePick:"选择目标盘：",moveDone:"迁移完成",moveErr:"迁移失败",adminTitle:"当前为标准权限",adminBody:"用户目录已统计完毕。系统目录需要管理员权限才能完整扫描。",adminAction:"以管理员重启",needAdmin:"需管理员",expand:"查看分项",collapse:"收起",viewAdmin:"需管理员统计"},
+en: {brand:"DeepClean",tagline:"Did AI tools eat your C: drive?",disk:"C:",freeOf:"free",ofTotal:"of",critical:"Critical",home:"Home",ai:"AI cleanup",models:"Local models",dev:"Dev caches",chat:"Chat apps",system:"System junk",settings:"Settings",theme:"Theme",dark:"Dark",light:"Light",used:"Used",total:"Capacity",available:"Free",almostFull:"C: is almost full",almostFullBody:"AI tools and models — not WeChat — are the space hogs.",healthyTitle:"C: drive is healthy",healthyBody:"Plenty of space left. AI tools and models grow fastest — scan regularly to stay ahead.",where:"Where the space went",segAi:"AI tools & models",segSystem:"System (review)",segChat:"Chat apps",segOther:"Everything else",segHint:"Estimated from rules after scan",ctaScan:"Scan AI & dev caches",ctaSystem:"System junk only",modeSafe:"Safe clean",modeSafeDesc:"Delete rebuildable caches only. Models and chats stay.",modeWork:"AI workstation",modeWorkDesc:"Clear caches and list idle models to move.",modeExpert:"Expert",modeExpertDesc:"Reveal WinSxS and other danger items, all unchecked.",recommended:"Recommended",scanDone:"Scan complete",safeClean:"Safe to clean",alsoNeed:"Plus",needReview:"needs review or migrate",rescan:"Scan again",stop:"Stop",all:"All",assistants:"Assistants",localModels:"Local models",cnApps:"CN apps",lastUsed:"Last used",daysAgo:"d ago",today:"Today",running:"Running",unknown:"Unknown",selected:"Selected",items:"items",cleanSelected:"Clean selected",migrateToD:"Move to D:",emptyScan:"No scan yet",emptyScanBody:"Scan AI and dev caches first. Read-only by default — nothing is deleted.",scanning:"Scanning the AI workstation",scanningHint:"Read-only: sizes and dates. No writes, no deletes.",confirmTitle:"Confirm cleanup",confirmBody:"Deletes selected rebuildable caches only. Models, chats and danger items stay. Busy or recently-created files are skipped automatically.",expectFree:"Estimated: ",confirmAction:"Clean now",cancel:"Cancel",close:"Close",successTitle:"Cleanup finished",successLine:"Free space on C: has been refreshed.",donateLine:"If this lets you keep running models tonight, buy the author a coffee.",wechat:"WeChat",alipay:"Alipay",afdian:"Afdian",donateNever:"Don't show the tip jar after cleanup",ok:"OK",rootsSub:"Checked folders are cleaned; unchecked ones are skipped this time.",noRoots:"Scan first to see folder details",moveSub:"Moves the model folder to the target drive and leaves a junction at the original path. Apps keep working with zero config; any failure rolls back.",moveStart:"Start move",moveRunning:"Moving…",moveTarget:"Move to:",language:"Language",donate:"Tip the author",rulesNote:"All cleanup rules live in the open-source rules/ folder — every path, risk level and reason is auditable. PRs welcome.",safetySafe:"Safe",safetyRebuildable:"Rebuild",safetyMigrate:"Move",safetyDanger:"Danger",lockedTip:"Locked · never cleaned",migrateTip:"Move instead of deleting",movePick:"Target drive:",moveDone:"Move finished",moveErr:"Move failed",adminTitle:"Running without admin",adminBody:"User folders are complete. System folders need elevation for a full scan.",adminAction:"Restart as admin",needAdmin:"Admin",expand:"Details",collapse:"Hide",viewAdmin:"Admin required"}
+};
+let locale = "zh";
+try { locale = localStorage.getItem("dc-locale") || (navigator.language && navigator.language.startsWith("zh") ? "zh" : "en"); } catch(e) {}
+const T = () => I18N[locale] || I18N.zh;
+const t = k => (T()[k] !== undefined ? T()[k] : (I18N.zh[k] !== undefined ? I18N.zh[k] : k));
+const esc = s => String(s == null ? "" : s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");
+
+/* ======================= 图标 ======================= */
+function svg(inner,w){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="'+(w||1.75)+'" stroke-linecap="round" stroke-linejoin="round">'+inner+'</svg>';}
+const IC = {
+  logo: svg('<path d="M12 3l7 4v10l-7 4-7-4V7z"/><path d="M9.5 12l2 2 3.5-4"/>',1.9),
+  home: svg('<path d="M4 11l8-7 8 7"/><path d="M6 9.5V20h12V9.5"/><path d="M10 20v-6h4v6"/>'),
+  scan: svg('<circle cx="11" cy="11" r="7"/><path d="M11 8v6M8 11h6"/><path d="M20 20l-3.5-3.5"/>'),
+  cpu: svg('<rect x="7" y="7" width="10" height="10" rx="2"/><path d="M10 3.5V7M14 3.5V7M10 17v3.5M14 17v3.5M3.5 10H7M3.5 14H7M17 10h3.5M17 14h3.5"/>'),
+  box: svg('<path d="M12 2.8l8 4.6v9.2l-8 4.6-8-4.6V7.4z"/><path d="M4 7.4l8 4.6 8-4.6M12 12v9.2"/>'),
+  chat: svg('<path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v7a2.5 2.5 0 0 1-2.5 2.5H10l-4.5 4v-4A2.5 2.5 0 0 1 4 13.5z"/>'),
+  disk: svg('<rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><circle cx="12" cy="12" r="3.2"/><path d="M12 10.5v1.6"/>'),
+  settings: svg('<circle cx="12" cy="12" r="3.4"/><path d="M12 2.8v2.6M12 18.6v2.6M2.8 12h2.6M18.6 12h2.6M5.4 5.4l1.9 1.9M16.7 16.7l1.9 1.9M18.6 5.4l-1.9 1.9M7.3 16.7l-1.9 1.9"/>',1.6),
+  sun: svg('<circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6L7 7M17 17l1.4 1.4M18.4 5.6L17 7M7 17l-1.4 1.4"/>'),
+  moon: svg('<path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z"/>'),
+  check: svg('<path d="M4.5 12.5l5 5 10-11"/>',3.2),
+  chevD: svg('<path d="M6 9.5l6 6 6-6"/>',2),
+  lock: svg('<rect x="5.5" y="10.5" width="13" height="9" rx="2"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/>',1.9),
+  x: svg('<path d="M6 6l12 12M18 6L6 18"/>',2),
+  arrowR: svg('<path d="M4.5 12h15M13.5 6l6 6-6 6"/>'),
+  rotate: svg('<path d="M3.5 12a8.5 8.5 0 1 1 2.5 6"/><path d="M3.5 21v-5h5"/>'),
+  folder: svg('<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M3 9.5h18"/>',1.5),
+  bot: svg('<rect x="5.5" y="8" width="13" height="10.5" rx="3"/><path d="M12 8V4.8"/><circle cx="12" cy="3.9" r="1"/><circle cx="9.3" cy="12.5" r="1" fill="currentColor" stroke="none"/><circle cx="14.7" cy="12.5" r="1" fill="currentColor" stroke="none"/><path d="M9.8 15.6h4.4"/>'),
+  code: svg('<path d="M8.5 7.5L4 12l4.5 4.5M15.5 7.5L20 12l-4.5 4.5"/>'),
+  term: svg('<rect x="3" y="4.5" width="18" height="15" rx="2"/><path d="M7 9.5l3 3-3 3"/><path d="M12.5 15.5H17"/>'),
+  db: svg('<ellipse cx="12" cy="6" rx="7" ry="2.8"/><path d="M5 6v12c0 1.6 3.1 2.8 7 2.8s7-1.2 7-2.8V6"/><path d="M5 12c0 1.6 3.1 2.8 7 2.8s7-1.2 7-2.8"/>'),
+  msg: svg('<path d="M8.5 4.5a6 6 0 0 0-3.4 10.9L4.5 18l2.8-1a6 6 0 0 0 2.2.4"/><path d="M9.5 9.3a5.4 5.4 0 0 1 9.8 4.4l.7 2.5-2.5-.8a5.4 5.4 0 0 1-5.6-.5"/>'),
+  wrench: svg('<path d="M14.5 6.5a4 4 0 0 0-5.4 4.8L4 16.4a1.8 1.8 0 0 0 2.6 2.6l5.1-5.1a4 4 0 0 0 4.8-5.4l-2.4 2.4-2.3-.6-.6-2.3z"/>'),
+  download: svg('<rect x="4.5" y="4" width="15" height="16" rx="2"/><path d="M12 7.5v6"/><path d="M9.5 11L12 13.5 14.5 11"/><path d="M8 17h8"/>'),
+  py: svg('<path d="M12 3.5c-2.8 0-4.5 1.2-4.5 3v2.3h4.7v.9H5.6c-1.8 0-3.1 1.5-3.1 4s1.3 4 3.1 4h1.7v-2.6c0-1.7 1.4-3 3.1-3h4.4c1.5 0 2.7-1.2 2.7-2.7V6.5c0-1.8-1.7-3-4.5-3z"/>'),
+  monitor: svg('<rect x="3.5" y="4.5" width="17" height="11.5" rx="2"/><path d="M9 20h6M12 16v4"/>'),
+  gear2: svg('<circle cx="12" cy="12" r="4.2"/><circle cx="12" cy="12" r="1.4"/><path d="M12 2.8v3M12 18.2v3M2.8 12h3M18.2 12h3M5.5 5.5l2.1 2.1M16.4 16.4l2.1 2.1M18.5 5.5l-2.1 2.1M7.6 16.4l-2.1 2.1"/>',1.5),
+  node: svg('<path d="M12 2.8l8 4.6v9.2l-8 4.6-8-4.6V7.4z"/><path d="M9.3 8.8v5.2a1.6 1.6 0 0 0 3.2 0V9.8"/><path d="M14.7 9.4v4.4a1.4 1.4 0 0 0 2.8 0"/>'),
+  whale: svg('<path d="M4 15c0 3 2.5 5 6 5h5c3.3 0 5.5-2.2 5.5-5.5 0-2.8-2-4.5-4.8-4.5H13c.3-1.5-.2-3-1.5-3.7-.2 1.2-1 2-2.2 2.3C6.6 9 4 10.8 4 15z"/><circle cx="16.2" cy="12.8" r=".9" fill="currentColor" stroke="none"/>'),
+  trash: svg('<path d="M4.5 7h15"/><path d="M9.5 7V5.4A1.4 1.4 0 0 1 10.9 4h2.2a1.4 1.4 0 0 1 1.4 1.4V7"/><path d="M6.5 7l1 13h9l1-13"/>'),
+  cube: svg('<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M4 7.5l8 4.5 8-4.5"/><path d="M12 12v9"/>'),
+  temp: svg('<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 7.5h6"/><circle cx="12" cy="15" r="2.8"/><path d="M12 13.6v1.4l1 .8"/>'),
+  shield: svg('<path d="M12 3.2l6.8 2.7v5.2c0 4.5-2.8 7.4-6.8 9.6-4-2.2-6.8-5.1-6.8-9.6V5.9z"/><path d="M9 11.8l2.1 2.1 3.9-4"/>'),
+};
+const TOOL_IC = {cursor:"code",claude:"term",zcode:"term",codex:"term",copilot:"bot",windsurf:"code",gemini:"bot",openclaw:"bot",trae:"code",qoder:"code",codebuddy:"bot",
+  hf:"db",ollama:"cpu",pytorch:"py",lmstudio:"monitor",kimi:"msg",doubao:"bot",coze:"bot",ima:"msg",quark:"scan",tabbit:"scan",updaters:"download",
+  npm:"node",docker:"whale",python:"py",jetbrains:"wrench",playwright:"monitor",electron:"cube",nuget:"cube",
+  wechat:"msg",qq:"msg",temp:"temp",browser:"scan",shader:"cpu",wlogs:"term",crash:"shield",msapp:"cube",recent:"disk",syscache:"gear2",residual:"trash",recycle:"trash",winsxs:"lock",pagefile:"lock",hibernate:"lock",restore:"shield",sandbox:"cube"};
+
+/* ======================= 状态 ======================= */
+const $ = s => document.querySelector(s);
+const S = { admin:false, drive:{free:0,total:0,used:0}, driveLetter:"C", tools:[], buckets:[], scanned:false };
+let view = "home";
+let mode = "safe";
+try { mode = localStorage.getItem("dc-mode") || "safe"; } catch(e) {}
+let selected = {};      // bucketId -> bool
+try { selected = JSON.parse(localStorage.getItem("dc-selected") || "{}"); } catch(e) { selected = {}; }let filter = "all";     // 结果页分组
+let openTools = {};     // toolId -> bool
+let rootsData = null;   // /api/roots
+let excl = {};          // bucketId -> Set(排除目录)
+let tmpExcl = new Set(), rootsCid = null;
+let moveTool = null, moveDrive = localStorage.getItem("dc-move-drive") || "D";
+let lastP = null, pollBusy = false, scanning = false, cleaningOpen = false;
+let pollTimer = null, scanStartTs = 0;
+
+const cleanable = b => !b.locked && b.risk !== "migrate";
+const MODE_KEY = { safe: "modeSafe", workstation: "modeWork", expert: "modeExpert" };
+const modeName = m => t(MODE_KEY[m]);
+const modeDesc = m => t(MODE_KEY[m] + "Desc");
+const B = id => S.buckets.find(x => x.id === id);
+const bsize = id => (lastP && lastP.per && lastP.per[id] ? lastP.per[id].size : 0) || (B(id) || {}).size || 0;
+const fmt = n => { n = Math.max(0, n||0); if (n < 1024) return n + " B"; if (n < 1048576) return (n/1024).toFixed(n < 10240 ? 1 : 0) + " KB"; if (n < 1073741824) return (n/1048576).toFixed(1) + " MB"; return (n/1073741824).toFixed(2) + " GB"; };
+const toast = m => { const el = $("#toast"); el.textContent = m; el.classList.add("show"); clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove("show"), 2200); };
+async function api(p, opt) { const r = await fetch(p, opt); return r.json(); }
+function store() { try { localStorage.setItem("dc-selected", JSON.stringify(selected)); localStorage.setItem("dc-mode", mode); } catch(e) {} }
+
+/* ======================= 安全级 / 勾选逻辑 ======================= */
+function defaultChecked(b) {
+  if (!cleanable(b)) return false;
+  if (b.risk === "safe") return true;
+  if (b.risk === "rebuildable") return mode !== "safe";
+  return false;
+}
+function applyMode() {
+  for (const b of S.buckets) selected[b.id] = defaultChecked(b);
+  store();
+}
+function toolBuckets(tid) { return S.buckets.filter(b => b.tool === tid); }
+function toolViewBuckets(tool, mode_) {
+  const items = toolBuckets(tool.id);
+  if (mode_ === "expert" || tool.category !== "system") return items;
+  return items.filter(b => b.risk !== "danger");
+}
+function toolCheckable(tool) { return toolViewBuckets(tool, mode).filter(cleanable); }
+
+/* ======================= 侧栏 ======================= */
+const NAV = [
+  { id:"home", ic:"home" }, { id:"ai", ic:"scan", hot:true }, { id:"models", ic:"cpu" },
+  { id:"dev", ic:"box" }, { id:"chat", ic:"chat" }, { id:"system", ic:"disk" },
+];
+function driveTone() {
+  const pct = S.drive.total ? S.drive.used / S.drive.total : 0;
+  return pct >= .97 ? "danger" : pct >= .90 ? "warn" : "ok";
+}
+function renderDiskCard() {
+  const el = $("#diskCard"); if (!el) return;
+  const pct = S.drive.total ? Math.round(S.drive.used / S.drive.total * 100) : 0;
+  const tone = driveTone();
+  el.innerHTML =
+    '<div class="row1"><span>' + esc(t("disk")) + '</span><span class="crit ' + tone + '">' + (tone === "ok" ? "" : esc(t("critical"))) + "</span></div>" +
+    '<div class="free"><b class="tabnum">' + fmt(S.drive.free) + '</b><span>' + esc(t("freeOf")) + "</span></div>" +
+    '<div class="bar"><i style="width:' + pct + "%;background:var(--" + (tone === "ok" ? "accent" : tone) + ')"></i></div>' +
+    '<div class="pct">' + pct + "% · " + fmt(S.drive.total) + " " + esc(t("ofTotal")) + "</div>";
+  el.title = fmt(S.drive.free) + " GB / " + fmt(S.drive.total) + " GB";
+}
+function renderNav() {
+  $("#nav").innerHTML = NAV.map(n => {
+    const active = view === n.id || (view === "results" && n.id === curView);
+    return '<button class="nav-item' + (active ? " active" : "") + '" data-v="' + n.id + '">' +
+      '<span class="ind"></span>' + IC[n.ic] + "<span>" + esc(t(n.id)) + "</span>" +
+      (n.hot ? '<span class="spacer"></span><span class="dot"></span>' : "") + "</button>";
+  }).join("");
+  document.querySelectorAll("#nav .nav-item").forEach(el => { el.onclick = () => setView(el.dataset.v); });
+}
+function applyI18nStatic() {
+  document.querySelectorAll("[data-i18n]").forEach(el => { el.textContent = t(el.dataset.i18n); });
+  $("#t-brand").textContent = t("brand");
+}
+
+/* ======================= 视图切换 ======================= */
+let curView = "ai"; // 结果视图当前分组页
+function setView(v) {
+  view = v;
+  if (v !== "home") curView = v;
+  renderNav();
+  render();
+  $("#page").scrollTop = 0;
+}
+
+/* ======================= 首页 ======================= */
+function segTone(id) { return id === "ai" ? "var(--accent)" : id === "system" ? "var(--warning)" : id === "chat" ? "var(--info)" : "var(--subtle)"; }
+function renderHome() {
+  const tone = driveTone();
+  const freeGb = S.drive.free / 1073741824;
+  const critical = freeGb < 8 || tone !== "ok";
+  const usedPct = S.drive.total ? S.drive.used / S.drive.total * 100 : 0;
+  // 空间去哪了：组聚合（未扫描时为 0）
+  const sumCat = cats => S.buckets.filter(b => cats.includes(b.category)).reduce((s, b) => s + bsize(b.id), 0);
+  const ai = sumCat(["assistant", "model", "cn-app"]);
+  const sysDanger = S.buckets.filter(b => b.category === "system" && b.risk === "danger").reduce((s, b) => s + bsize(b.id), 0);
+  const chat = sumCat(["chat"]);
+  const other = Math.max(0, S.drive.used - ai - sysDanger - chat);
+  const segs = [
+    { id:"ai", v:ai }, { id:"system", v:sysDanger }, { id:"chat", v:chat }, { id:"other", v:other },
+  ];
+  const totalSeg = segs.reduce((s, x) => s + x.v, 0) || 1;
+  const gaugeColor = tone === "danger" ? "var(--danger)" : tone === "warn" ? "var(--warning)" : "var(--accent)";
+  const statusWord = tone === "ok" ? "" : t("critical");
+  const modes = [
+    { m:"safe", badge:true }, { m:"workstation" }, { m:"expert" },
+  ];
+  $("#page").innerHTML =
+  '<div class="home-wrap">' +
+    '<div class="home-grid stagger">' +
+      "<div>" +
+        '<p class="kicker ' + (critical ? "danger" : "ok") + '">' + (critical ? esc(t("critical")) : esc(t("available"))) + "</p>" +
+        '<h1 class="h-display">' + esc(critical ? t("almostFull") : t("healthyTitle")) + "</h1>" +
+        '<p class="h-sub">' + (critical
+          ? esc(t("almostFullBody")).replace("1.04 GB", fmt(S.drive.free))
+          : esc(t("healthyBody"))) + "</p>" +
+        '<div class="where">' +
+          '<div class="sec-label">' + esc(t("where")) + "</div>" +
+          '<div class="segbar">' + segs.map(s => '<i style="width:' + (s.v / totalSeg * 100).toFixed(2) + "%;background:" + segTone(s.id) + '"></i>').join("") + "</div>" +
+          '<ul class="legend">' + segs.map(s =>
+            '<li><span class="lb"><i style="background:' + segTone(s.id) + '"></i>' + esc(t("seg" + s.id.charAt(0).toUpperCase() + s.id.slice(1))) + "</span>" +
+            '<span class="v">' + (S.scanned || s.v > 0 ? fmt(s.v) : "—") + "</span></li>").join("") +
+          "</ul>" +
+          '<p class="sec-label" style="margin-top:10px;text-transform:none;letter-spacing:0">' + esc(t("segHint")) + "</p>" +
+        "</div>" +
+      "</div>" +
+      '<div class="gauge-col">' +
+        '<div class="gauge"><div class="ring" style="background:conic-gradient(from -90deg,' + gaugeColor + " " + usedPct.toFixed(1) + "%,var(--surface2) 0)\"></div>" +
+          '<div class="hole"></div><div class="txt"><div class="pct">' + Math.round(usedPct) + '%</div><div class="lb">' + esc(t("used")) + "</div>" +
+          '<div class="st" style="color:' + gaugeColor + '">' + esc(statusWord) + "</div></div></div>" +
+        '<div class="stat3">' +
+          '<div class="st-card"><div class="v">' + fmt(S.drive.total) + '</div><div class="k">' + esc(t("total")) + "</div></div>" +
+          '<div class="st-card"><div class="v warn">' + fmt(S.drive.used) + '</div><div class="k">' + esc(t("used")) + "</div></div>" +
+          '<div class="st-card"><div class="v ' + (tone === "ok" ? "" : "danger") + '">' + fmt(S.drive.free) + '</div><div class="k">' + esc(t("available")) + "</div></div>" +
+        "</div>" +
+      "</div>" +
+    "</div>" +
+    '<div><div class="sec-label">' + esc(t("modeSafe") === "安全一键" ? "三种清理模式" : "Cleanup modes") + "</div>" +
+    '<div class="modes">' + modes.map(m =>
+      '<button class="mode-card' + (mode === m.m ? " on" : "") + '" data-mode="' + m.m + '">' +
+      '<div class="mh"><span class="mt">' + esc(modeName(m.m)) + "</span>" +
+      (m.badge ? '<span class="badge">' + esc(t("recommended")) + "</span>" : "") + "</div>" +
+      "<p>" + esc(modeDesc(m.m)) + "</p></button>").join("") +
+    "</div></div>" +
+    '<div class="home-cta">' +
+      '<button class="btn primary lg" id="btnScan">' + IC.scan + esc(t("ctaScan")) + "</button>" +
+      '<button class="btn ghost lg" id="btnSysOnly">' + esc(t("ctaSystem")) + IC.arrowR + "</button>" +
+    "</div>" +
+  "</div>";
+  document.querySelectorAll(".mode-card").forEach(el => { el.onclick = () => { mode = el.dataset.mode; applyMode(); renderHome(); }; });
+  $("#btnScan").onclick = () => startScan("ai");
+  $("#btnSysOnly").onclick = () => { curView = "system"; setView("system"); if (!S.scanned) startScan("system"); };
+}
+
+/* ======================= 结果视图（按工具） ======================= */
+const VIEW_CAT = { ai:["assistant","model","cn-app"], models:["model"], dev:["dev"], chat:["chat"], system:["system"] };
+const FILTERS = [
+  { id:"all", label:() => t("all") },
+  { id:"assistant", label:() => t("assistants") },
+  { id:"model", label:() => t("localModels") },
+  { id:"cn-app", label:() => t("cnApps") },
+];
+function catLabel(c) { return t({assistant:"assistants", model:"localModels", "cn-app":"cnApps", dev:"dev", chat:"chat", system:"system"}[c] || "all"); }
+
+function renderResults() {
+  const cats = VIEW_CAT[curView] || [];
+  let tools = S.tools.filter(t0 => cats.includes(t0.category));
+  if (curView === "ai") {
+    tools = tools.filter(t0 => filter === "all" || t0.category === filter);
+  }
+  // 大小排序
+  const tsize = tid => toolBuckets(tid).reduce((s, b) => s + bsize(b.id), 0);
+  tools = tools.slice().sort((a, b) => tsize(b.id) - tsize(a.id));
+
+  const viewCleanable = S.buckets.filter(b => cats.includes(b.category) && cleanable(b));
+  const selBuckets = viewCleanable.filter(b => selected[b.id]);
+  const selMb = selBuckets.reduce((s, b) => s + bsize(b.id), 0);
+  const safeMb = viewCleanable.filter(b => b.risk === "safe").reduce((s, b) => s + bsize(b.id), 0);
+  const reviewMb = viewCleanable.filter(b => b.risk === "rebuildable").reduce((s, b) => s + bsize(b.id), 0);
+  const migrateMb = S.buckets.filter(b => cats.includes(b.category) && b.risk === "migrate" && b.moveable).reduce((s, b) => s + bsize(b.id), 0);
+
+  let head;
+  if (!S.scanned) {
+    head = '<div class="empty-wrap"><div class="empty-ic">' + IC.scan + '</div>' +
+      '<h1 style="margin-top:18px;font-size:22px;font-weight:500">' + esc(t("emptyScan")) + "</h1>" +
+      '<p style="margin-top:10px;font-size:13px;color:var(--muted);max-width:380px;line-height:1.7">' + esc(t("emptyScanBody")) + "</p>" +
+      '<button class="btn primary lg" style="margin-top:22px" id="btnScanEmpty">' + IC.scan + esc(t("ctaScan")) + "</button></div>";
+  } else {
+    head = '<div class="res-head">' +
+      '<div class="res-top"><div>' +
+        '<p class="kicker">' + esc(t("scanDone")) + "</p>" +
+        '<h1 class="h-title">' + esc(t("safeClean")) + " <b>" + fmt(selMb) + "</b></h1>" +
+        '<p class="h-sub2">' + esc(t("alsoNeed")) + ' <span class="warn-num">' + fmt(reviewMb + migrateMb) + "</span> " + esc(t("needReview")) + "</p>" +
+      "</div>" +
+      '<button class="btn outline sm" id="btnRescan">' + IC.rotate + esc(t("rescan")) + "</button></div>" +
+      '<div class="mode-row"><div class="modeswitch" id="modeSwitch">' +
+        ["safe","workstation","expert"].map(m => '<button data-m="' + m + '" class="' + (mode === m ? "on" : "") + '">' + esc(modeName(m)) + "</button>").join("") +
+      '</div><span class="mode-desc">' + esc(modeDesc(mode)) + "</span></div>" +
+      (curView === "ai" ? '<div class="chips">' + FILTERS.map(f => '<button class="chip' + (filter === f.id ? " on" : "") + '" data-f="' + f.id + '">' + esc(f.label()) + "</button>").join("") + "</div>" : "") +
+      "</div>";
+  }
+
+  const body = S.scanned
+    ? '<div class="tool-grid stagger">' + tools.map((t0, i) => toolCard(t0, i < 3)).join("") + "</div>"
+    : "";
+
+  const bar = S.scanned
+    ? '<div class="actionbar"><div class="in">' +
+      '<div class="sum"><span>' + esc(t("selected")) + " " + selBuckets.length + " " + esc(t("items")) + '</span> · <b>' + fmt(selMb) + "</b>" +
+      (migrateMb > 0 ? '<span class="mig">' + fmt(migrateMb) + " " + esc(t("migrateToD")) + "</span>" : "") + "</div>" +
+      '<div class="btns">' +
+        '<button class="btn outline" id="btnMove" ' + (migrateMb === 0 ? "disabled" : "") + ">" + esc(t("migrateToD")) + "</button>" +
+        '<button class="btn primary" id="btnClean" ' + (selMb === 0 ? "disabled" : "") + ">" + esc(t("cleanSelected")) + "</button>" +
+      "</div></div></div>"
+    : "";
+
+  $("#page").innerHTML = head + '<div class="res-body">' + body + "</div>" + bar;
+
+  if (!S.scanned) { const b = $("#btnScanEmpty"); if (b) b.onclick = () => startScan(curView); return; }
+  const rs = $("#btnRescan"); if (rs) rs.onclick = () => startScan(curView);
+  document.querySelectorAll("#modeSwitch button").forEach(el => { el.onclick = () => { mode = el.dataset.m; applyMode(); renderResults(); }; });
+  document.querySelectorAll(".chip[data-f]").forEach(el => { el.onclick = () => { filter = el.dataset.f; renderResults(); }; });
+  bindToolCards();
+  const bc = $("#btnClean"); if (bc) bc.onclick = openConfirm;
+  const bm = $("#btnMove"); if (bm) bm.onclick = openMove;
+}
+
+function safetyChip(risk, long) {
+  const key = "safety" + (risk === "safe" ? "Safe" : risk === "rebuildable" ? "Rebuildable" : risk === "migrate" ? "Migrate" : "Danger");
+  const shortZh = { safe:"安全", rebuildable:"可重建", migrate:"迁移", danger:"危险" };
+  const shortEn = { safe:"Safe", rebuildable:"Rebuild", migrate:"Move", danger:"Danger" };
+  const label = long ? t(key) : (locale === "zh" ? shortZh[risk] : shortEn[risk]);
+  return '<span class="safety ' + risk + '">' + esc(label) + "</span>";
+}
+function check2(on, cls) {
+  return '<button class="bk-check ' + cls + (on ? " on" : "") + '">' + (on ? IC.check : "") + "</button>";
+}
+function lastUsedTxt(days) {
+  if (days === null || days === undefined) return t("unknown");
+  if (days === 0) return t("today");
+  return days + " " + t("daysAgo");
+}
+function toolCard(tool, defaultOpen) {
+  const items = toolViewBuckets(tool, mode);
+  const checkable = items.filter(cleanable);
+  const checkedCount = checkable.filter(b => selected[b.id]).length;
+  const allOn = checkable.length > 0 && checkedCount === checkable.length;
+  const someOn = checkedCount > 0 && !allOn;
+  const locked = checkable.length === 0;
+  const total = items.reduce((s, b) => s + bsize(b.id), 0);
+  const open = openTools[tool.id] !== undefined ? openTools[tool.id] : !!defaultOpen;
+  const highest = items.some(b => b.risk === "danger") ? "danger" : items.some(b => b.risk === "migrate") ? "migrate" : items.some(b => b.risk === "rebuildable") ? "rebuildable" : "safe";
+  const running = tool.running;
+  const icon = IC[TOOL_IC[tool.id] || "box"];
+
+  const rows = items.map(b => {
+    const isMig = b.risk === "migrate";
+    const lock = b.locked || b.risk === "migrate";
+    const checked = !!selected[b.id];
+    const roots = rootsData && rootsData[b.id] ? rootsData[b.id].roots.filter(r => r.size > 0) : [];
+    const mainPath = b.move_root || (b.desc ? "" : "");
+    const p0 = roots.length ? roots[0].root : (firstRoot(b.id) || "—");
+    return '<li class="bucket-row">' +
+      (lock
+        ? '<button class="bk-check locked" title="' + esc(b.locked ? t("lockedTip") : t("migrateTip")) + '">' + IC.lock + "</button>"
+        : check2(checked, "")) +
+      '<div class="bk-mid">' +
+        '<div class="bk-name-row"><span class="bk-name">' + esc(locale === "zh" ? b.name : (b.nameEn || b.name)) + "</span>" + safetyChip(b.risk) +
+          (b.need_admin ? '<span class="safety danger">' + esc(t("needAdmin")) + "</span>" : "") +
+          '<span class="bk-size">' + fmt(bsize(b.id)) + "</span></div>" +
+        '<p class="bk-hint">' + esc(locale === "zh" ? b.desc : (b.descEn || b.desc)) + "</p>" +
+        '<div class="bk-path"><code>' + esc(p0) + (roots.length > 1 ? " +" + (roots.length - 1) : "") + '</code>' +
+        (roots.length ? '<button class="bk-roots-btn" data-roots="' + b.id + '">' + esc(t("expand")) + "</button>" : "") + "</div>" +
+      "</div></li>";
+  }).join("");
+
+  return '<article class="toolcard' + (checkedCount > 0 ? " has-sel" : "") + (locked ? " locked" : "") + '" data-tool="' + tool.id + '">' +
+    '<div class="tc-head">' +
+      (locked
+        ? '<button class="bk-check locked" title="' + esc(t("lockedTip")) + '">' + IC.lock + "</button>"
+        : '<button class="bk-check' + (allOn ? " on" : "") + '" data-toolcheck="' + tool.id + '" aria-checked="' + (someOn ? "mixed" : allOn) + '">' +
+          (allOn ? IC.check : someOn ? '<span class="bar-ind"></span>' : "") + "</button>") +
+      '<div class="tc-ic">' + icon + "</div>" +
+      '<div class="tc-mid"><div class="tc-name-row"><span class="tc-name">' + esc(tool.name) + "</span>" +
+        (running ? '<span class="run-badge">' + esc(t("running")) + "</span>" : "") + "</div>" +
+        '<p class="tc-sub">' + esc(t("lastUsed")) + " " + esc(lastUsedTxt(tool.last_used_days)) + "</p></div>" +
+      '<div class="tc-right"><div class="tc-size tabnum">' + fmt(total) + '</div><div style="margin-top:6px">' + safetyChip(highest) + "</div></div>" +
+    "</div>" +
+    '<button class="tc-toggle' + (open ? " open" : "") + '" data-tooltoggle="' + tool.id + '"><span>' +
+      esc(open ? t("collapse") : t("expand")) + " · " + items.length + "</span>" + IC.chevD + "</button>" +
+    (open ? '<ul class="bucket-list">' + rows + "</ul>" : "") +
+    "</article>";
+}
+function firstRoot(bid) {
+  const b = B(bid); if (!b) return "";
+  return (b.move_root || (S.roots0 && S.roots0[bid]) || b.first_path || "");
+}
+function bindToolCards() {
+  document.querySelectorAll("[data-toolcheck]").forEach(el => {
+    el.onclick = () => {
+      const tid = el.dataset.toolcheck;
+      const tool = S.tools.find(x => x.id === tid);
+      const checkable = toolCheckable(tool);
+      const allOn = checkable.length > 0 && checkable.every(b => selected[b.id]);
+      for (const b of checkable) selected[b.id] = !allOn;
+      store(); renderResults();
+    };
+  });
+  document.querySelectorAll("[data-tooltoggle]").forEach(el => {
+    el.onclick = () => { const tid = el.dataset.tooltoggle; openTools[tid] = !(openTools[tid] !== undefined ? openTools[tid] : el.classList.contains("open")); renderResults(); };
+  });
+  document.querySelectorAll("[data-roots]").forEach(el => {
+    el.onclick = ev => { ev.stopPropagation(); openRoots(el.dataset.roots); };
+  });
+}
+
+/* ======================= 渲染入口 ======================= */
+function render() {
+  renderDiskCard();
+  if (view === "home") renderHome();
+  else renderResults();
+}
+
+/* ======================= 扫描 ======================= */
+async function startScan(nextView) {
+  if (scanning) return;
+  const r = await api("/api/scan/start", { method: "POST" });
+  if (!r.ok) { toast(r.error || "…"); return; }
+  scanning = true; scanStartTs = Date.now();
+  $("#scanTitle").textContent = t("scanning");
+  $("#scanMask").classList.add("show");
+  if (nextView) { curView = nextView; view = nextView; }
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(pollScan, 500);
+  pollScan();
+}
+async function pollScan() {
+  try {
+    const p = await api("/api/progress");
+    $("#scanProg").style.width = p.percent + "%";
+    $("#scanCur").textContent = p.current || "";
+    if (p.status === "done" || p.status === "stopped") {
+      clearInterval(pollTimer); pollTimer = null;
+      scanning = false;
+      $("#scanMask").classList.remove("show");
+      S.scanned = p.status === "done";
+      await refreshState();
+      setView(curView === "home" ? "ai" : curView);
+      toast(t("scanDone"));
+    }
+  } catch (e) { /* 服务未就绪 */ }
+}
+
+/* ======================= 状态刷新 ======================= */
+async function refreshState() {
+  try {
+    const st = await api("/api/state");
+    S.admin = st.admin; S.drive = st.drive; S.driveLetter = st.drive_letter;
+    S.tools = st.tools; S.buckets = st.buckets;
+    // 勾选恢复校验：仅保留当前存在的分项；全部失效（首装或规则升级）时按当前模式重算默认勾选
+    const valid = {};
+    for (const b of st.buckets) if (selected[b.id] && cleanable(b)) valid[b.id] = true;
+    const kept = Object.keys(valid).length;
+    selected = valid;
+    if (!kept) for (const b of st.buckets) selected[b.id] = defaultChecked(b);
+    const p = await api("/api/progress");
+    lastP = p;
+    S.scanned = p.status === "done" || p.status === "stopped";
+    const r = await api("/api/roots");
+    if (r.ok) rootsData = r.categories;
+    render();
+  } catch (e) {
+    document.body.innerHTML = '<div style="margin:auto;font-size:14px;color:#888">无法连接本地服务，请重新运行 app.py</div>';
+  }
+}
+
+/* ======================= 清理流程 ======================= */
+function collectSelected() { return S.buckets.filter(b => selected[b.id] && cleanable(b)); }
+function openConfirm() {
+  const sel = collectSelected();
+  if (!sel.length) { toast(t("selected") + " 0"); return; }
+  let sum = 0;
+  $("#confirmList").innerHTML = sel.map(b => {
+    const sz = bsize(b.id); sum += sz;
+    const ex = excl[b.id];
+    const tag = ex && ex.size ? '<span style="color:var(--warning)">（-' + ex.size + "）</span>" : "";
+    return '<div class="mrow"><span class="nm">' + esc(locale === "zh" ? b.name : (b.nameEn || b.name)) + tag +
+      '</span><span class="sz">' + fmt(sz) + "</span></div>";
+  }).join("");
+  const sysSpecial = sel.filter(b => b.special && b.need_admin);
+  $("#confirmWarn").innerHTML = sysSpecial.length
+    ? '<div class="warnbox">⚠ ' + esc(t("adminTitle")) + "： " + sysSpecial.map(b => esc(b.name)).join("、") + "</div>"
+    : "";
+  $("#confirmTotal").textContent = fmt(sum);
+  $("#maskConfirm").classList.add("show");
+}
+$("#btnConfirmCancel").onclick = () => $("#maskConfirm").classList.remove("show");
+$("#btnConfirmOk").onclick = async () => {
+  const ids = collectSelected().map(b => b.id);
+  const excluded = [];
+  for (const id of ids) { const ex = excl[id]; if (ex) for (const p of ex) excluded.push(p); }
+  const r = await api("/api/clean", { method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({ ids, dry:false, excluded_roots:excluded }) });
+  if (!r.ok) { toast(r.error || "…"); return; }
+  $("#maskConfirm").classList.remove("show");
+  cleaningOpen = true;
+  $("#scanTitle").textContent = t("cleanSelected");
+  $("#scanMask").classList.add("show");
+  const t2 = setInterval(async () => {
+    const c = await api("/api/clean/progress");
+    $("#scanProg").style.width = "100%";
+    $("#scanCur").textContent = c.current || "";
+    if (c.status === "done" || c.status === "stopped") {
+      clearInterval(t2); cleaningOpen = false;
+      $("#scanMask").classList.remove("show");
+      const freed = c.total_freed || 0;
+      $("#successFreed").textContent = fmt(freed);
+      $("#successLine").textContent = t("successLine") + " " + fmt(S.drive.free) + " → " + fmt(S.drive.free + freed);
+      const off = localStorage.getItem("dc-donate-off") === "1";
+      $("#donateBox").style.display = off ? "none" : "";
+      $("#maskSuccess").classList.add("show");
+      await refreshState();
+    }
+  }, 600);
+};
+$("#donateOff").onchange = e => { try { localStorage.setItem("dc-donate-off", e.target.checked ? "1" : "0"); } catch(err) {} };
+$("#btnSuccessClose").onclick = () => { $("#maskSuccess").classList.remove("show"); $("#donateOff").checked = false; };
+$("#btnSuccessDone").onclick = () => { $("#maskSuccess").classList.remove("show"); $("#donateOff").checked = false; refreshState(); };
+
+/* ======================= 目录明细 / 排除 ======================= */
+function rootsOf(bid) { return (rootsData && rootsData[bid] && rootsData[bid].roots) || []; }
+function openRoots(bid) {
+  rootsCid = bid;
+  const b = B(bid);
+  $("#rootsTitle").textContent = (locale === "zh" ? b.name : (b.nameEn || b.name)) + " · " + t("expand");
+  const list = rootsOf(bid);
+  if (!list.length) {
+    tmpExcl = new Set();
+    $("#rootsList").innerHTML = '<div class="mrow"><span class="nm">' + esc(t("noRoots")) + "</span></div>";
+    $("#rootsTotal").textContent = "";
+    $("#maskRoots").classList.add("show");
+    return;
+  }
+  tmpExcl = new Set(excl[bid] || []);
+  renderRootsList();
+  $("#maskRoots").classList.add("show");
+}
+function renderRootsList() {
+  const list = rootsOf(rootsCid);
+  $("#rootsList").innerHTML = list.map((r, i) => {
+    const on = !tmpExcl.has(r.root);
+    return '<div class="mrow roots-row" data-rrow="' + i + '">' +
+      '<button class="bk-check ' + (on ? "on" : "") + '" style="width:18px;height:18px">' + (on ? IC.check : "") + "</button>" +
+      '<span class="nm" style="flex:1;font-family:\'IBM Plex Mono\',Consolas,monospace;font-size:11.5px">' + esc(r.root) + "</span>" +
+      '<span class="sz">' + fmt(r.size) + " · " + r.count + "</span></div>";
+  }).join("");
+  let sum = 0, n = 0;
+  for (const r of list) if (!tmpExcl.has(r.root)) { sum += r.size; n++; }
+  $("#rootsTotal").innerHTML = n + " / " + list.length + " · <b>" + fmt(sum) + "</b>";
+  document.querySelectorAll("[data-rrow]").forEach(el => {
+    el.onclick = () => {
+      const root = list[+el.dataset.rrow].root;
+      if (tmpExcl.has(root)) tmpExcl.delete(root); else tmpExcl.add(root);
+      renderRootsList();
+    };
+  });
+}
+$("#btnRootsClose").onclick = $("#btnRootsCancel").onclick = () => $("#maskRoots").classList.remove("show");
+$("#btnRootsOk").onclick = () => {
+  if (rootsCid) { if (tmpExcl.size) excl[rootsCid] = tmpExcl; else delete excl[rootsCid]; }
+  $("#maskRoots").classList.remove("show");
+};
+
+/* ======================= 迁移 ======================= */
+function openMove() {
+  const movers = S.buckets.filter(b => b.risk === "migrate" && b.moveable && bsize(b.id) > 0);
+  if (!movers.length) { toast(t("migrateToD")); return; }
+  moveTool = movers[0].tool;
+  renderMoveList();
+  $("#maskMove").classList.add("show");
+}
+function renderMoveList() {
+  const movers = S.buckets.filter(b => b.risk === "migrate" && b.moveable && bsize(b.id) > 0);
+  $("#moveList").innerHTML = movers.map(b => {
+    const tool = S.tools.find(x => x.id === b.tool) || { name: b.tool };
+    return '<div class="mrow" style="cursor:pointer" data-mtool="' + b.tool + '">' +
+      '<button class="bk-check ' + (moveTool === b.tool ? "on" : "") + '" style="pointer-events:none">' + (moveTool === b.tool ? IC.check : "") + "</button>" +
+      '<span class="nm">' + esc(tool.name) + " · " + esc(locale === "zh" ? b.name : (b.nameEn || b.name)) + "</span>" +
+      '<span class="sz">' + fmt(bsize(b.id)) + "</span></div>";
+  }).join("");
+  $("#moveTarget").innerHTML = esc(t("movePick")) + " <b>" + esc(moveDrive + ":\\DeepCleanMoved") + "</b>";
+  document.querySelectorAll("[data-mtool]").forEach(el => { el.onclick = () => { moveTool = el.dataset.mtool; renderMoveList(); }; });
+}
+$("#btnMoveClose").onclick = $("#btnMoveCancel").onclick = () => $("#maskMove").classList.remove("show");
+$("#btnMoveStart").onclick = async () => {
+  $("#btnMoveStart").disabled = true;
+  const r = await api("/api/move", { method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({ tool: moveTool, to: moveDrive, dry: false }) });
+  if (!r.ok) { toast(r.error || t("moveErr")); $("#btnMoveStart").disabled = false; return; }
+  $("#scanTitle").textContent = t("moveRunning");
+  $("#scanMask").classList.add("show");
+  const t2 = setInterval(async () => {
+    const m = await api("/api/move/progress");
+    if (m.status !== "running") {
+      clearInterval(t2);
+      $("#scanMask").classList.remove("show");
+      $("#btnMoveStart").disabled = false;
+      $("#maskMove").classList.remove("show");
+      if (m.status === "done") { toast(m.note || t("moveDone")); }
+      else toast(m.error || t("moveErr"));
+      await refreshState();
+    }
+  }, 600);
+};
+
+/* ======================= 设置 / 主题 ======================= */
+function applyTheme(th) {
+  document.body.classList.toggle("light", th === "light");
+  $("#themeIc").innerHTML = th === "light" ? IC.moon : IC.sun;
+  try { localStorage.setItem("dc-theme", th); } catch(e) {}
+}
+$("#btnThemeFoot").onclick = () => applyTheme(document.body.classList.contains("light") ? "dark" : "light");
+function applyLocale(l) {
+  locale = l;
+  try { localStorage.setItem("dc-locale", l); } catch(e) {}
+  applyI18nStatic();
+  document.documentElement.lang = l === "zh" ? "zh-CN" : "en";
+  renderNav(); render(); renderLangSeg();
+}
+function renderLangSeg() {
+  document.querySelectorAll("#langSeg button").forEach(b => b.classList.toggle("on", b.dataset.lang === locale));
+  document.querySelectorAll("#themeSeg button").forEach(b => b.classList.toggle("on", b.dataset.theme === (document.body.classList.contains("light") ? "light" : "dark")));
+}
+$("#btnSettings").onclick = () => { renderLangSeg(); $("#maskSettings").classList.add("show"); };
+$("#btnSettingsClose").onclick = $("#btnSettingsOk").onclick = () => $("#maskSettings").classList.remove("show");
+document.querySelectorAll("#langSeg button").forEach(b => b.onclick = () => applyLocale(b.dataset.lang));
+document.querySelectorAll("#themeSeg button").forEach(b => b.onclick = () => { applyTheme(b.dataset.theme); renderLangSeg(); });
+
+/* ======================= 管理员横幅 ======================= */
+function renderAdmin() {
+  const el = $("#adminStrip");
+  if (S.admin) { el.classList.remove("show"); return; }
+  el.classList.add("show");
+  el.innerHTML = "<span>⚠ <b>" + esc(t("adminTitle")) + "</b> — " + esc(t("adminBody")) + "</span>" +
+    '<button class="btn outline sm" id="btnRelaunch">' + esc(t("adminAction")) + "</button>";
+  $("#btnRelaunch").onclick = async () => {
+    const r = await api("/api/relaunch_admin", { method: "POST" });
+    toast(r.ok ? r.msg : (r.msg || "…"));
+  };
+}
+
+/* ======================= 轻量轮询（扫描外） ======================= */
+async function poll() {
+  if (pollBusy || scanning) return;
+  pollBusy = true;
+  try {
+    const p = await api("/api/progress");
+    lastP = p;
+    if (!scanning && (p.status === "done" || p.status === "stopped")) S.scanned = true;
+  } catch (e) {}
+  pollBusy = false;
+}
+setInterval(() => { if (S.scanned && !scanning) poll(); }, 3000);
+
+/* ======================= 初始化 ======================= */
+(async function init() {
+  $("#logoIcon").innerHTML = IC.logo;
+  $("#setIc").innerHTML = IC.settings;
+  $("#btnSuccessClose").innerHTML = IC.x;
+  $("#btnRootsClose").innerHTML = IC.x;
+  $("#btnMoveClose").innerHTML = IC.x;
+  $("#btnSettingsClose").innerHTML = IC.x;
+  let th = "dark";
+  try { th = localStorage.getItem("dc-theme") || "dark"; } catch(e) {}
+  applyTheme(th);
+  applyI18nStatic();
+  await refreshState();
+  renderAdmin();
+  renderNav();
+  setView("home");
+  renderLangSeg();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,39 @@
+{
+  "$comment": "深清 DeepClean 本地模型规则。migrate 项默认不可删除，只能迁移到其他盘（目录联接）。moveable=true 表示支持一键迁移。",
+  "tools": [
+    { "id": "hf", "name": "Hugging Face", "category": "model", "processes": [] },
+    { "id": "ollama", "name": "Ollama", "category": "model", "processes": ["ollama.exe"] },
+    { "id": "pytorch", "name": "PyTorch / CUDA", "category": "model", "processes": [] },
+    { "id": "lmstudio", "name": "LM Studio", "category": "model", "processes": ["LM Studio.exe"] }
+  ],
+  "buckets": [
+    {
+      "id": "hf-hub", "tool": "hf", "risk": "migrate", "moveable": true, "move_root": "%USERPROFILE%\\.cache\\huggingface",
+      "labelZh": "模型仓库缓存", "labelEn": "Hub model cache",
+      "hintZh": "拉取过的模型权重快照。删除会浪费大量下载时间，建议迁移到其他盘并保留目录联接。",
+      "hintEn": "Downloaded model weight snapshots. Deleting wastes download time — move to another drive and keep a junction.",
+      "paths": ["%USERPROFILE%\\.cache\\huggingface\\hub", "%USERPROFILE%\\.cache\\huggingface\\datasets"]
+    },
+    {
+      "id": "ollama-models", "tool": "ollama", "risk": "migrate", "moveable": true, "move_root": "%USERPROFILE%\\.ollama",
+      "labelZh": "模型文件", "labelEn": "Model blobs",
+      "hintZh": "Ollama 拉取的模型。建议迁移到其他盘并保留目录联接，ollama 无需任何配置即可继续使用。",
+      "hintEn": "Pulled Ollama models. Move to another drive with a junction — ollama keeps working untouched.",
+      "paths": ["%USERPROFILE%\\.ollama\\models"]
+    },
+    {
+      "id": "pytorch-cache", "tool": "pytorch", "risk": "safe", "min_age_min": 1440,
+      "labelZh": "CUDA / Hub 缓存", "labelEn": "CUDA / Hub cache",
+      "hintZh": "编译核与权重下载缓存，可删，下次训练或运行会重建。",
+      "hintEn": "Compiled kernels and weight download cache. Rebuilds on next run.",
+      "paths": ["%USERPROFILE%\\.cache\\torch", "%USERPROFILE%\\.cache\\clip"]
+    },
+    {
+      "id": "lmstudio-models", "tool": "lmstudio", "risk": "migrate", "moveable": true, "move_root": "%USERPROFILE%\\.lmstudio",
+      "labelZh": "模型文件", "labelEn": "Model files",
+      "hintZh": "LM Studio 下载的 GGUF 模型。建议迁移到其他盘并保留目录联接。",
+      "hintEn": "GGUF models downloaded by LM Studio. Move to another drive with a junction.",
+      "paths": ["%USERPROFILE%\\.lmstudio\\models", "%USERPROFILE%\\.cache\\lm-studio\\models"]
+    }
+  ]
+}

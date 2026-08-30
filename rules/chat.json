@@ -1,0 +1,31 @@
+{
+  "$comment": "深清 DeepClean 聊天应用规则。只清缓存与日志；聊天记录、收藏与接收的文件永远不在清理范围。",
+  "tools": [
+    { "id": "wechat", "name": "微信", "category": "chat", "processes": ["WeChat.exe", "Weixin.exe"] },
+    { "id": "qq", "name": "QQ / 企业微信", "category": "chat", "processes": ["QQ.exe", "WXWork.exe"] }
+  ],
+  "buckets": [
+    {
+      "id": "wechat-cache", "tool": "wechat", "risk": "safe", "min_age_min": 1440,
+      "labelZh": "图片与文件缓存", "labelEn": "Media cache",
+      "hintZh": "内置浏览器、朋友圈缓存与插件。可清缓存；聊天记录默认保留。",
+      "hintEn": "In-app browser, Moments cache and plugins. Chat history is kept.",
+      "paths": [
+        "%APPDATA%\\Tencent\\xwechat\\radium", "%APPDATA%\\Tencent\\xwechat\\XPlugin",
+        "%APPDATA%\\Tencent\\xwechat\\log", "%APPDATA%\\Tencent\\WeChat\\All Users\\Cache"
+      ]
+    },
+    {
+      "id": "qq-cache", "tool": "qq", "risk": "safe", "min_age_min": 1440,
+      "labelZh": "接收文件与缓存", "labelEn": "Received files & cache",
+      "hintZh": "QQ NT 与企业微信的网页缓存和日志。缓存可清；收藏与消息默认保留。",
+      "hintEn": "Web cache and logs of QQ NT / WXWork. Favorites and messages stay.",
+      "paths": [
+        "%APPDATA%\\Tencent\\QQ\\*\\Cache", "%APPDATA%\\Tencent\\QQ\\*\\Code Cache",
+        "%APPDATA%\\Tencent\\QQ\\*\\GPUCache", "%LOCALAPPDATA%\\Tencent\\QQ\\*\\Cache",
+        "%APPDATA%\\Tencent\\WXWork\\*\\Cache", "%APPDATA%\\Tencent\\WXWork\\*\\Code Cache",
+        "%APPDATA%\\Tencent\\WXWork\\*\\GPUCache", "%APPDATA%\\Tencent\\WXWork\\*\\log"
+      ]
+    }
+  ]
+}

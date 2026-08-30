@@ -1,0 +1,149 @@
+{
+  "$comment": "深清 DeepClean 系统垃圾规则。special_size/special_clean 供引擎执行特殊逻辑（recycle=Shell清空, dism, vss, hiber, pagefile, sysfile）。danger 项仅在专家模式露出且默认不勾选。",
+  "tools": [
+    { "id": "temp", "name": "临时文件", "category": "system", "processes": [] },
+    { "id": "browser", "name": "浏览器缓存", "category": "system", "processes": [] },
+    { "id": "shader", "name": "显卡着色器", "category": "system", "processes": [] },
+    { "id": "wlogs", "name": "系统日志", "category": "system", "processes": [] },
+    { "id": "crash", "name": "崩溃转储", "category": "system", "processes": [] },
+    { "id": "msapp", "name": "微软应用", "category": "system", "processes": [] },
+    { "id": "recent", "name": "历史记录", "category": "system", "processes": [] },
+    { "id": "syscache", "name": "系统缓存", "category": "system", "processes": [] },
+    { "id": "residual", "name": "安装残留", "category": "system", "processes": [] },
+    { "id": "recycle", "name": "回收站", "category": "system", "processes": [] },
+    { "id": "winsxs", "name": "WinSxS", "category": "system", "processes": [] },
+    { "id": "pagefile", "name": "虚拟内存", "category": "system", "processes": [] },
+    { "id": "hibernate", "name": "休眠文件", "category": "system", "processes": [] },
+    { "id": "restore", "name": "系统还原点", "category": "system", "processes": [] }
+  ],
+  "buckets": [
+    {
+      "id": "temp-files", "tool": "temp", "risk": "safe", "min_age_min": 60,
+      "labelZh": "系统临时文件", "labelEn": "System temp files",
+      "hintZh": "Windows 与用户 Temp 目录，安全可删。",
+      "hintEn": "Windows and user Temp directories. Safe to delete.",
+      "paths": ["%TEMP%", "%WINDIR%\\Temp"]
+    },
+    {
+      "id": "browser-cache", "tool": "browser", "risk": "safe", "min_age_min": 30,
+      "labelZh": "网页缓存", "labelEn": "Browser cache",
+      "hintZh": "Chrome/Edge/Firefox/夸克 的网页缓存与缩略图缓存，书签与登录不受影响。",
+      "hintEn": "Chrome/Edge/Firefox/Quark web cache and thumbnails. Bookmarks and sign-in stay.",
+      "paths": [
+        "%LOCALAPPDATA%\\Google\\Chrome\\User Data\\*\\Cache", "%LOCALAPPDATA%\\Google\\Chrome\\User Data\\*\\Code Cache",
+        "%LOCALAPPDATA%\\Google\\Chrome\\User Data\\*\\GrShaderCache", "%LOCALAPPDATA%\\Google\\Chrome\\User Data\\*\\Service Worker\\CacheStorage",
+        "%LOCALAPPDATA%\\Microsoft\\Edge\\User Data\\*\\Cache", "%LOCALAPPDATA%\\Microsoft\\Edge\\User Data\\*\\Code Cache",
+        "%LOCALAPPDATA%\\Microsoft\\Edge\\User Data\\*\\Service Worker\\CacheStorage",
+        "%LOCALAPPDATA%\\Mozilla\\Firefox\\Profiles\\*\\cache2",
+        "%LOCALAPPDATA%\\Microsoft\\Windows\\INetCache", "%LOCALAPPDATA%\\Microsoft\\Windows\\Explorer\\thumbcache_*.db",
+        "%LOCALAPPDATA%\\Microsoft\\Windows\\Explorer\\iconcache_*.db"
+      ]
+    },
+    {
+      "id": "shader-cache", "tool": "shader", "risk": "safe", "min_age_min": 30,
+      "labelZh": "着色器缓存", "labelEn": "Shader cache",
+      "hintZh": "DirectX 与显卡驱动着色器缓存，删除后游戏首次启动变慢。",
+      "hintEn": "DirectX and GPU driver shader caches. Games compile them again on next launch.",
+      "paths": ["%LOCALAPPDATA%\\D3DSCache", "%LOCALAPPDATA%\\NVIDIA\\GLCache", "%LOCALAPPDATA%\\AMD\\DxCache"]
+    },
+    {
+      "id": "wlogs", "tool": "wlogs", "risk": "safe", "min_age_min": 1440,
+      "read_admin": true, "clean_admin": true,
+      "labelZh": "系统日志", "labelEn": "System logs",
+      "hintZh": "Windows 系统组件日志，需管理员权限清理。",
+      "hintEn": "Windows component logs. Admin required to clean.",
+      "paths": ["%WINDIR%\\Logs"]
+    },
+    {
+      "id": "crash-dumps", "tool": "crash", "risk": "safe", "min_age_min": 1440,
+      "read_admin": true, "clean_admin": true,
+      "labelZh": "崩溃转储", "labelEn": "Crash dumps",
+      "hintZh": "蓝屏转储与程序错误报告，排查完问题后可删。",
+      "hintEn": "BSOD dumps and WER reports. Safe to delete once debugging is done.",
+      "paths": [
+        "%WINDIR%\\Minidump", "%WINDIR%\\MEMORY.DMP", "%LOCALAPPDATA%\\CrashDumps",
+        "%ProgramData%\\Microsoft\\Windows\\WER"
+      ]
+    },
+    {
+      "id": "msapp-cache", "tool": "msapp", "risk": "safe", "min_age_min": 1440,
+      "labelZh": "Office 缓存", "labelEn": "Office cache",
+      "hintZh": "Office 文件缓存与 Teams 缓存。",
+      "hintEn": "Office file cache and Teams cache.",
+      "paths": [
+        "%LOCALAPPDATA%\\Microsoft\\Office\\FileCache", "%LOCALAPPDATA%\\Microsoft\\Office\\16.0\\OfficeFileCache",
+        "%APPDATA%\\Microsoft\\Teams\\Cache", "%LOCALAPPDATA%\\Packages\\MSTeams_8wekyb3d8bbwe\\LocalCache"
+      ]
+    },
+    {
+      "id": "recent-items", "tool": "recent", "risk": "safe", "min_age_min": 1440,
+      "labelZh": "最近使用记录", "labelEn": "Recent items",
+      "hintZh": "最近打开文件的快捷方式与跳转列表。",
+      "hintEn": "Recent file shortcuts and jump lists.",
+      "paths": ["%APPDATA%\\Microsoft\\Windows\\Recent"]
+    },
+    {
+      "id": "syscache", "tool": "syscache", "risk": "safe", "min_age_min": 1440,
+      "read_admin": true, "clean_admin": true,
+      "labelZh": "系统缓存", "labelEn": "System caches",
+      "hintZh": "字体缓存、输入法缓存与传递优化缓存，需管理员。",
+      "hintEn": "Font, IME and delivery optimization caches. Admin required.",
+      "paths": [
+        "%WINDIR%\\ServiceProfiles\\LocalService\\AppData\\Local\\FontCache",
+        "%APPDATA%\\Microsoft\\InputMethod",
+        "%WINDIR%\\ServiceProfiles\\NetworkService\\AppData\\Local\\Microsoft\\Windows\\DeliveryOptimization\\Cache"
+      ]
+    },
+    {
+      "id": "residual", "tool": "residual", "risk": "safe", "min_age_min": 1440,
+      "read_admin": true, "clean_admin": true,
+      "labelZh": "安装残留", "labelEn": "Installer leftovers",
+      "hintZh": "驱动解压残留与旧系统 Windows.old（如有）。",
+      "hintEn": "Driver extraction leftovers and Windows.old if present.",
+      "paths": [
+        "C:\\NVIDIA", "C:\\AMD", "C:\\Intel",
+        "%ProgramData%\\NVIDIA Corporation\\Downloader", "C:\\Windows.old",
+        "%WINDIR%\\Downloaded Installations"
+      ]
+    },
+    {
+      "id": "recycle-bin", "tool": "recycle", "risk": "safe", "special_size": "recyclebin", "special_clean": "recycle",
+      "labelZh": "回收站", "labelEn": "Recycle bin",
+      "hintZh": "C 盘回收站里的已删除文件（清空当前用户回收站）。",
+      "hintEn": "Deleted files in the C: recycle bin (current user).",
+      "paths": ["C:\\$Recycle.Bin"]
+    },
+    {
+      "id": "winsxs", "tool": "winsxs", "risk": "danger", "special_size": null, "special_clean": "dism",
+      "clean_admin": true,
+      "labelZh": "组件存储 (WinSxS)", "labelEn": "Component store (WinSxS)",
+      "hintZh": "通过 DISM 清理旧版本补丁。删除可能导致更新失败，仅专家模式可见，默认不勾选。",
+      "hintEn": "Old update components via DISM. Can break updates — expert-only, unchecked.",
+      "paths": ["%WINDIR%\\WinSxS"]
+    },
+    {
+      "id": "pagefile", "tool": "pagefile", "risk": "danger", "special_size": "sysfile", "special_clean": "pagefile",
+      "clean_admin": true, "sysfiles": ["pagefile.sys", "swapfile.sys"],
+      "labelZh": "虚拟内存 pagefile", "labelEn": "Virtual memory pagefile",
+      "hintZh": "由系统管理。设置关机清空等于改注册表，可能导致内存不足。",
+      "hintEn": "OS-managed. Clearing on shutdown edits the registry and can cause OOM.",
+      "paths": []
+    },
+    {
+      "id": "hibernate", "tool": "hibernate", "risk": "danger", "special_size": "sysfile", "special_clean": "hiber",
+      "clean_admin": true, "sysfiles": ["hiberfil.sys"],
+      "labelZh": "休眠文件 hiberfil", "labelEn": "Hibernate file",
+      "hintZh": "关闭休眠可释放，但笔记本将无法休眠。",
+      "hintEn": "Disabling hibernate frees space but laptops cannot hibernate.",
+      "paths": []
+    },
+    {
+      "id": "restore-points", "tool": "restore", "risk": "danger", "special_size": "vss", "special_clean": "vss",
+      "clean_admin": true,
+      "labelZh": "系统还原点", "labelEn": "System restore points",
+      "hintZh": "删除全部还原点以释放空间，系统出问题时将无法回滚。",
+      "hintEn": "Deletes all restore points. You lose the ability to roll back.",
+      "paths": []
+    }
+  ]
+}
