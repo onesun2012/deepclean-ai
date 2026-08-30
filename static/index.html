@@ -464,7 +464,7 @@ function store() { try { localStorage.setItem("dc-selected", JSON.stringify(sele
 function defaultChecked(b) {
   if (!cleanable(b)) return false;
   if (b.risk === "safe") return true;
-  if (b.risk === "rebuildable") return mode !== "safe";
+  if (b.risk === "rebuildable") return mode !== "safe" && !b.default_off;
   return false;
 }
 function applyMode() {
@@ -497,7 +497,7 @@ function renderDiskCard() {
     '<div class="free"><b class="tabnum">' + fmt(S.drive.free) + '</b><span>' + esc(t("freeOf")) + "</span></div>" +
     '<div class="bar"><i style="width:' + pct + "%;background:var(--" + (tone === "ok" ? "accent" : tone) + ')"></i></div>' +
     '<div class="pct">' + pct + "% · " + fmt(S.drive.total) + " " + esc(t("ofTotal")) + "</div>";
-  el.title = fmt(S.drive.free) + " GB / " + fmt(S.drive.total) + " GB";
+  el.title = fmt(S.drive.free) + " / " + fmt(S.drive.total);
 }
 function renderNav() {
   $("#nav").innerHTML = NAV.map(n => {
@@ -1010,6 +1010,8 @@ setInterval(() => { if (S.scanned && !scanning) poll(); }, 3000);
   $("#btnRootsClose").innerHTML = IC.x;
   $("#btnMoveClose").innerHTML = IC.x;
   $("#btnSettingsClose").innerHTML = IC.x;
+  // 侧栏磁盘卡：点击直接进扫描
+  $("#diskCard").onclick = () => { if (!scanning && !cleaningOpen) startScan("ai"); };
   let th = "dark";
   try { th = localStorage.getItem("dc-theme") || "dark"; } catch(e) {}
   applyTheme(th);

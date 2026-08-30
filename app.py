@@ -11,6 +11,8 @@
 - 正被占用 / 无权限 / 保留时间不足的文件自动跳过，并在清理报告中体现
 - 回收站通过系统 Shell 接口清空（仅当前用户、仅 C 盘）
 - 休眠文件 / 虚拟内存 / 系统还原点 / WinSxs 等系统级项目默认不勾选，且需要管理员权限
+- 未锁定的危险分项必须显式确认才会进入清理计划（网页 confirm_danger / CLI --confirm-danger）
+- 网页服务校验 Host 与请求来源（Origin / Sec-Fetch-Site），只接受本机同源请求
 """
 import ctypes
 import glob as _glob
@@ -143,6 +145,8 @@ for _b in RULE_BUCKETS:
     )
     if _b.get("locked"):
         _cat["locked"] = True
+    if _b.get("default_off"):
+        _cat["default_off"] = True   # 即使是可重建级也不参与默认勾选（如回收站）
     if _b.get("moveable"):
         _cat["moveable"] = True
         _cat["move_root"] = _b.get("move_root", "")
@@ -643,7 +647,11 @@ class MoveJob:
             if os.path.exists(dst):
                 raise RuntimeError("目标目录已存在: " + dst)
             os.makedirs(os.path.dirname(dst), exist_ok=True)
-            shutil.copytree(src, dst)  # 跨盘剪切 = 复制 + 校验 + 删源
+            try:
+                shutil.copytree(src, dst, symlinks=True)  # 跨盘剪切 = 复制 + 校验 + 删源；symlinks 保留 HF 等缓存内的链接结构
+            except Exception:
+                shutil.rmtree(dst, ignore_errors=True)
+                raise
             copied = dir_size(dst)
             if abs(copied - total) > max(1024 * 1024, total // 1000):
                 shutil.rmtree(dst, ignore_errors=True)
@@ -675,7 +683,7 @@ class MoveJob:
 MOVE = MoveJob()
 
 
-def build_clean_plan(ids, excluded=None):
+def build_clean_plan(ids, excluded=None, confirm_danger=False):
     if SCAN.status in ("running", "stopping"):
         return None, "扫描正在进行中，请等待完成或先停止扫描"
     if SCAN.status not in ("done", "stopped"):
@@ -686,8 +694,11 @@ def build_clean_plan(ids, excluded=None):
         cat = CAT_BY_ID.get(cid)
         if not cat:
             continue
-        # 安全红线：锁定项（会话/历史）与迁移项永远不会进入清理计划
+        # 安全红线：锁定项（会话/历史）与迁移项永远不会进入清理计划；
+        # 未锁定的危险分项必须显式确认（confirm_danger）才会进入
         if cat.get("locked") or cat.get("risk") == "migrate":
+            continue
+        if cat.get("risk") == "danger" and not confirm_danger:
             continue
         entries = SCAN.entries.get(cid, [])
         if excluded:
@@ -797,10 +808,12 @@ def run_cli(args):
     sub.add_parser("categories", help="列出全部分项及安全级说明")
     sp = sub.add_parser("scan", help="扫描并输出各工具/分项大小与目录明细")
     sp.add_argument("--json", action="store_true", default=True, help="以 JSON 输出（默认行为）")
-    cp = sub.add_parser("clean", help="清理指定分项（需要时自动先扫描；locked/migrate 分项自动跳过）")
+    cp = sub.add_parser("clean", help="清理指定分项（需要时自动先扫描；locked/migrate 自动跳过，危险分项需 --confirm-danger）")
     cp.add_argument("--ids", required=True, help="分项 id，逗号分隔，如 npm-store,kimi-cache")
     cp.add_argument("--dry", action="store_true", help="预览模式，不实际删除")
     cp.add_argument("--yes", action="store_true", help="确认执行（不带时仅输出清理计划并以退出码 2 结束）")
+    cp.add_argument("--confirm-danger", action="store_true",
+                    help="未锁定的危险分项（risk=danger）需额外确认才会执行")
     cp.add_argument("--exclude-root", action="append", default=[], metavar="DIR",
                     help="排除指定目录不清理（可重复传入多个）")
     cp.add_argument("--json", action="store_true", default=True, help="以 JSON 输出（默认行为）")
@@ -839,17 +852,24 @@ def run_cli(args):
                                   hint="先运行 cli categories 查看可用分项"), ensure_ascii=False))
             return 1
         skipped = [x for x in ids if CAT_BY_ID[x].get("locked") or CAT_BY_ID[x].get("risk") == "migrate"]
-        ids = [x for x in ids if x not in skipped]
+        rest = [x for x in ids if x not in skipped]
+        unconfirmed = [x for x in rest if CAT_BY_ID[x].get("risk") == "danger" and not a.confirm_danger]
+        ids = [x for x in rest if x not in unconfirmed]
         if not ids:
-            print(json.dumps(dict(ok=False, error="所选分项均为锁定/迁移项，不会删除任何文件",
-                                  skipped=skipped,
-                                  hint="migrate 分项请使用 cli move 迁移"), ensure_ascii=False))
+            if skipped:
+                print(json.dumps(dict(ok=False, error="所选分项均为锁定/迁移项，不会删除任何文件",
+                                      skipped=skipped,
+                                      hint="migrate 分项请使用 cli move 迁移"), ensure_ascii=False))
+            else:
+                print(json.dumps(dict(ok=False, error="所选分项均为危险分项，未确认不会执行",
+                                      skipped_danger=unconfirmed,
+                                      hint="确认风险可控后加 --confirm-danger 重新执行"), ensure_ascii=False))
             return 1
         ok, err = _cli_scan_if_needed()
         if not ok:
             print(json.dumps(dict(ok=False, error=err), ensure_ascii=False))
             return 1
-        plan, err = build_clean_plan(ids, list(a.exclude_root))
+        plan, err = build_clean_plan(ids, list(a.exclude_root), a.confirm_danger)
         if plan is None:
             print(json.dumps(dict(ok=False, error=err), ensure_ascii=False))
             return 1
@@ -871,7 +891,7 @@ def run_cli(args):
         du = shutil.disk_usage(DRIVE_ROOT)
         print(json.dumps(dict(ok=snap["status"] == "done", status=snap["status"], dry=bool(a.dry),
                               freed=snap["total_freed"], skipped=snap["total_skipped"],
-                              free_now=du.free, skipped_locked=skipped,
+                              free_now=du.free, skipped_locked=skipped, skipped_danger=unconfirmed,
                               per={cid: dict(status=i["status"], freed=i["freed"],
                                              skipped=i["skipped"], note=i["note"])
                                     for cid, i in snap["per"].items()}),
@@ -943,6 +963,7 @@ def api_state():
             id=c["id"], tool=c.get("tool", ""), category=c.get("category", "system"),
             risk=c.get("risk", "safe"), locked=bool(c.get("locked")),
             moveable=bool(c.get("moveable")), move_root=c.get("move_root", ""),
+            default_off=bool(c.get("default_off")),
             name=c.get("name", c["id"]), nameEn=c.get("nameEn", c["id"]),
             desc=c.get("desc", ""), descEn=c.get("descEn", ""),
             special=bool(c.get("special_size") or c.get("special_clean")),
@@ -969,11 +990,53 @@ def api_roots():
     return dict(ok=True, status=SCAN.status, categories=cats)
 
 
+# 仅接受回环来源：Host/Origin 必须指向本机且端口与本服务一致（防 DNS rebinding
+# 读取扫描结果），POST 拒绝跨站 Origin / Sec-Fetch-Site（防其它网页驱动本接口删除文件）
+LOCAL_HOSTS = {"127.0.0.1", "localhost", "::1"}
+MAX_BODY_BYTES = 1_000_000
+
+
+def _host_port(value):
+    """解析 Host/Origin 头，返回 (scheme, host, port)；无法解析时 port 为 None"""
+    v = (value or "").strip().lower()
+    scheme = ""
+    if "://" in v:
+        scheme, v = v.split("://", 1)
+        v = v.split("/", 1)[0]
+    if v.startswith("["):  # [::1]:8520
+        host, _, rest = v[1:].partition("]")
+        port = rest[1:] if rest.startswith(":") else None
+    elif v.count(":") == 1:
+        host, port = v.rsplit(":", 1)
+    else:
+        host, port = v, None
+    return scheme, host, (int(port) if port and port.isdigit() else None)
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "ClearC/1.0"
 
     def log_message(self, fmt, *args):
         pass
+
+    def _guard(self, check_origin):
+        """本机同源校验；不通过时直接应答 403 并返回 False"""
+        port = self.server.server_address[1]
+        _, host, hport = _host_port(self.headers.get("Host"))
+        if host not in LOCAL_HOSTS or hport != port:
+            self._json(dict(error="forbidden: untrusted host"), 403)
+            return False
+        if check_origin:
+            if (self.headers.get("Sec-Fetch-Site") or "").strip().lower() == "cross-site":
+                self._json(dict(error="forbidden: cross-site request"), 403)
+                return False
+            origin = self.headers.get("Origin")
+            if origin and origin.strip().lower() != "null":
+                scheme, ohost, oport = _host_port(origin)
+                if scheme != "http" or ohost not in LOCAL_HOSTS or oport != port:
+                    self._json(dict(error="forbidden: cross-origin request"), 403)
+                    return False
+        return True
 
     def _send(self, code, body, ctype):
         self.send_response(code)
@@ -992,6 +1055,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = self.path.split("?")[0]
+        if not self._guard(False):
+            return
         try:
             if path in ("/", "/index.html"):
                 with open(os.path.join(STATIC_DIR, "index.html"), "rb") as f:
@@ -1015,8 +1080,13 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         path = self.path.split("?")[0]
+        if not self._guard(True):
+            return
         try:
             n = int(self.headers.get("Content-Length") or 0)
+            if n > MAX_BODY_BYTES:
+                self._json(dict(error="payload too large"), 413)
+                return
             raw = self.rfile.read(n) if n else b""
             try:
                 body = json.loads(raw.decode("utf-8")) if raw else {}
@@ -1031,7 +1101,7 @@ class Handler(BaseHTTPRequestHandler):
             elif path == "/api/clean":
                 ids = [str(x) for x in (body.get("ids") or [])][:64]
                 excluded = [str(x) for x in (body.get("excluded_roots") or [])][:512]
-                plan, err = build_clean_plan(ids, excluded)
+                plan, err = build_clean_plan(ids, excluded, bool(body.get("confirm_danger")))
                 if plan is None:
                     self._json(dict(ok=False, error=err))
                     return

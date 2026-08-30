@@ -165,7 +165,19 @@
       "hintZh": "工作区语义索引与存储。可删，下次打开项目会重新扫描。",
       "hintEn": "Workspace semantic index and storage. Rebuilt when you reopen a project.",
       "paths": [
-        "%APPDATA%\\Cursor\\User\\workspaceStorage",
+        "%APPDATA%\\Cursor\\User\\workspaceStorage"
+      ]
+    },
+    {
+      "id": "cursor-file-history",
+      "tool": "cursor",
+      "risk": "danger",
+      "locked": true,
+      "labelZh": "文件历史",
+      "labelEn": "File history",
+      "hintZh": "Cursor 保存的文件修改历史，删除后无法回溯。永不清理。",
+      "hintEn": "File edit history kept by Cursor. Never cleaned by this tool.",
+      "paths": [
         "%APPDATA%\\Cursor\\User\\History"
       ]
     },
@@ -189,11 +201,10 @@
       "min_age_min": 60,
       "labelZh": "CLI 缓存",
       "labelEn": "CLI cache",
-      "hintZh": "Shell 快照、文件历史与统计缓存，可安全删除。",
-      "hintEn": "Shell snapshots, file history and stats cache. Safe to delete.",
+      "hintZh": "Shell 快照与统计缓存，可安全删除。",
+      "hintEn": "Shell snapshots and stats cache. Safe to delete.",
       "paths": [
         "%USERPROFILE%\\.claude\\shell-snapshots",
-        "%USERPROFILE%\\.claude\\file-history",
         "%USERPROFILE%\\.claude\\statsig",
         "%USERPROFILE%\\.claude\\downloads",
         "%USERPROFILE%\\.claude\\plugins\\cache"
@@ -206,10 +217,11 @@
       "locked": true,
       "labelZh": "会话记录",
       "labelEn": "Session transcripts",
-      "hintZh": "本地对话记录，删除后无法从本机恢复。永不清理。",
-      "hintEn": "Local transcripts. Never cleaned by this tool.",
+      "hintZh": "对话记录与文件快照（/rewind 回滚数据），删除后无法从本机恢复。永不清理。",
+      "hintEn": "Transcripts and file snapshots (rewind data). Never cleaned by this tool.",
       "paths": [
-        "%USERPROFILE%\\.claude\\projects"
+        "%USERPROFILE%\\.claude\\projects",
+        "%USERPROFILE%\\.claude\\file-history"
       ]
     },
     {
@@ -219,14 +231,26 @@
       "min_age_min": 60,
       "labelZh": "CLI 缓存",
       "labelEn": "CLI cache",
-      "hintZh": "插件缓存、日志与临时产物，配置与登录不受影响。",
-      "hintEn": "Plugin cache, logs and artifacts. Config and sign-in untouched.",
+      "hintZh": "插件缓存与日志，配置与登录不受影响。",
+      "hintEn": "Plugin cache and logs. Config and sign-in untouched.",
       "paths": [
         "%USERPROFILE%\\.zcode\\cli\\plugins\\cache",
         "%USERPROFILE%\\.zcode\\cli\\log",
         "%USERPROFILE%\\.zcode\\cli\\artifacts",
-        "%USERPROFILE%\\.zcode\\cli\\rollout",
         "%USERPROFILE%\\.zcode\\cli\\statsig"
+      ]
+    },
+    {
+      "id": "zcode-sessions",
+      "tool": "zcode",
+      "risk": "danger",
+      "locked": true,
+      "labelZh": "会话记录",
+      "labelEn": "Session transcripts",
+      "hintZh": "会话转录记录，删除后无法从本机恢复。永不清理。",
+      "hintEn": "Session transcripts. Never cleaned by this tool.",
+      "paths": [
+        "%USERPROFILE%\\.zcode\\cli\\rollout"
       ]
     },
     {
