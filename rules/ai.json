@@ -247,10 +247,11 @@
       "locked": true,
       "labelZh": "会话记录",
       "labelEn": "Session transcripts",
-      "hintZh": "会话转录记录，删除后无法从本机恢复。永不清理。",
-      "hintEn": "Session transcripts. Never cleaned by this tool.",
+      "hintZh": "会话转录（rollout）与会话数据库 db.sqlite，删除后无法从本机恢复。永不清理。",
+      "hintEn": "Session transcripts (rollout) and the session database db.sqlite. Never cleaned by this tool.",
       "paths": [
-        "%USERPROFILE%\\.zcode\\cli\\rollout"
+        "%USERPROFILE%\\.zcode\\cli\\rollout",
+        "%USERPROFILE%\\.zcode\\cli\\db"
       ]
     },
     {

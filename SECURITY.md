@@ -18,7 +18,7 @@
 
 ## 永不清理清单（后端硬排除，任何入口都无法触发）
 
-- 全部 AI 工具的会话记录：`~/.codex/sessions`、`~/.claude/projects`、`~/.zcode/cli/rollout`、Cursor 对话历史（`globalStorage`）等
+- 全部 AI 工具的会话记录：`~/.codex/sessions`、`~/.claude/projects`、`~/.zcode/cli/rollout`、`~/.zcode/cli/db`（会话数据库 db.sqlite）、Cursor 对话历史（`globalStorage`）等
 - 文件历史与回滚快照：`~/.claude/file-history`、Cursor `User\History`
 - 系统级危险项：WinSxS / 虚拟内存 / 休眠文件 / 系统还原点（全部 `locked`，如需处理请用系统自带工具）
 - `Windows.old` 等系统回滚数据不在任何规则中
@@ -26,6 +26,9 @@
 ## 安全设计承诺
 
 - 默认只读扫描，不自动删除任何文件
+- **普通清理送入回收站（SHFileOperation + FOF_ALLOWUNDO），不做永久删除**；送入失败的文件跳过并计入报告，绝不回退成强删。清空回收站之前随时可在资源管理器找回
+- 「回收站」分项（清空回收站）必须**单独执行**，不能与其它清理项同趟，避免刚送入的文件被立刻倒掉
+- 只有三种情况会永久删除（仅测试用途）：设置了 `CLEAR_C_SANDBOX`、`DEEPCLEAN_PERMANENT=1`、或非 Windows 平台
 - `locked`（danger）分项在后端被硬性排除，任何入口（网页/CLI/skill）都无法清理（清单见上）
 - 未锁定的危险分项必须显式确认才会进入清理计划：网页请求需 `confirm_danger`，CLI 需 `--confirm-danger`
 - `migrate` 分项（本地模型）不进入清理计划，只能通过迁移通道（复制 → 校验 → junction → 删源，失败回滚）
@@ -35,6 +38,7 @@
 - 保留期（min_age_min）内的文件自动跳过；被占用/无权限的文件自动跳过
 - 迁移复制使用 `symlinks=True`，保留 Hugging Face 等缓存内的链接结构
 - 工具只监听 127.0.0.1，不联网、无遥测
+- 清理历史保存在本机 `%LOCALAPPDATA%\DeepClean\history.jsonl`（可用 `DEEPCLEAN_HISTORY` 覆盖），只含汇总数字、少量样例路径与当时运行中的工具名，不含完整文件清单，无按文件还原接口
 
 ## 迁移中断的手动恢复
 

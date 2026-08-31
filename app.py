@@ -419,6 +419,96 @@ class ScanJob:
 
 
 # ----------------------------------------------------------------------------
+# 删除语义：Windows 生产路径送回收站，失败跳过、绝不回退成永久删除
+# ----------------------------------------------------------------------------
+FO_DELETE = 3
+FOF_ALLOWUNDO = 0x40
+FOF_NOCONFIRMATION = 0x10
+FOF_SILENT = 0x4
+FOF_NOERRORUI = 0x400
+
+
+class SHFILEOPSTRUCTW(ctypes.Structure):
+    _fields_ = [("hwnd", ctypes.c_void_p), ("wFunc", ctypes.c_uint),
+                ("pFrom", ctypes.c_wchar_p), ("pTo", ctypes.c_wchar_p),
+                ("fFlags", ctypes.c_ushort), ("fAnyOperationsAborted", ctypes.c_int),
+                ("hNameMappings", ctypes.c_void_p), ("lpszProgressTitle", ctypes.c_wchar_p)]
+
+
+def _build_pfrom(paths):
+    """SHFileOperation 的 pFrom：多路径 \0 分隔、必须双 \0 结尾
+    （create_unicode_buffer 会在内容后再补一个终止符，所以内容只需一个 \0）"""
+    return ctypes.create_unicode_buffer("\0".join(paths) + "\0")
+
+
+def _sh_recycle(op_ptr):
+    """实际 Shell 调用入口（测试中替换此函数以 mock，不碰真实回收站）"""
+    return ctypes.windll.shell32.SHFileOperationW(op_ptr)
+
+
+def _permanent_delete_allowed():
+    """走 os.remove 永久删除的唯一条件（满足其一）：
+    设置了 CLEAR_C_SANDBOX（自动化测试沙盒）、DEEPCLEAN_PERMANENT=1（显式测试开关）、
+    或非 Windows 平台（无回收站语义）。生产环境永远是回收站。"""
+    return ((not IS_WIN)
+            or bool(os.environ.get("CLEAR_C_SANDBOX"))
+            or os.environ.get("DEEPCLEAN_PERMANENT") == "1")
+
+
+def delete_files(paths):
+    """删除一组文件，返回 (成功路径, 失败路径)。
+
+    Windows 生产路径用 SHFileOperationW 送回收站（FOF_ALLOWUNDO），
+    单批 pFrom 控制在约 30KB 内，批失败降级为逐个调用，单个仍失败计入失败——
+    任何情况下都不会回退成 os.remove。"""
+    if _permanent_delete_allowed():
+        ok, failed = [], []
+        for p in paths:
+            try:
+                os.remove(p)
+                ok.append(p)
+            except OSError:
+                failed.append(p)
+        return ok, failed
+    ok, failed = [], []
+    batch, batch_len = [], 0
+    for p in paths:
+        batch.append(p)
+        batch_len += len(p) + 1
+        if batch_len >= 15000:  # 约 30KB wchar 上限，超了分批
+            good, bad = _recycle_batch(batch)
+            ok += good
+            failed += bad
+            batch, batch_len = [], 0
+    if batch:
+        good, bad = _recycle_batch(batch)
+        ok += good
+        failed += bad
+    return ok, failed
+
+
+def _recycle_batch(batch):
+    op = SHFILEOPSTRUCTW()
+    buf = _build_pfrom(batch)
+    op.hwnd = None
+    op.wFunc = FO_DELETE
+    op.pFrom = ctypes.cast(buf, ctypes.c_wchar_p)
+    op.pTo = None
+    op.fFlags = FOF_ALLOWUNDO | FOF_NOCONFIRMATION | FOF_SILENT | FOF_NOERRORUI
+    if _sh_recycle(ctypes.byref(op)) == 0 and not op.fAnyOperationsAborted:
+        return list(batch), []
+    if len(batch) == 1:
+        log("无法送入回收站: " + batch[0])
+        return [], list(batch)
+    good, failed = [], []
+    for p in batch:  # 整批失败降级为逐个，定位失败文件
+        g, b = _recycle_batch([p])
+        good += g
+        failed += b
+    return good, failed
+
+
+# ----------------------------------------------------------------------------
 # 清理任务
 # ----------------------------------------------------------------------------
 class CleanJob:
@@ -428,6 +518,8 @@ class CleanJob:
         self.per = {}
         self.current = ""
         self.dry = False
+        self.via = "recycle"
+        self.samples = {}
         self.stop = threading.Event()
         self.started = 0.0
 
@@ -436,7 +528,10 @@ class CleanJob:
             if self.status == "running":
                 return False, "已有清理任务正在进行"
             self.status = "running"
-            self.per = {cid: dict(status="pending", freed=0, skipped=0, note="", size=it["size"])
+            self.via = "permanent" if _permanent_delete_allowed() else "recycle"
+            self.samples = {}
+            self.per = {cid: dict(status="pending", freed=0, skipped=0, recycled=0,
+                                  note="", size=it["size"])
                         for cid, it in plan.items()}
             self.dry = bool(dry)
             self.current = ""
@@ -452,6 +547,7 @@ class CleanJob:
                 self.status = "stopping"
 
     def _run(self, plan):
+        running_processes()  # 刷新进程缓存，供运行中警告与历史记录使用
         for cid, it in plan.items():
             if self.stop.is_set():
                 break
@@ -462,6 +558,8 @@ class CleanJob:
                 if info["status"] in ("running", "pending"):
                     info["status"] = "skipped" if stopped else "done"
             self.status = "stopped" if stopped else "done"
+        if not self.dry:
+            self._write_history(plan)
 
     def _clean_one(self, cid, it):
         info = self.per[cid]
@@ -528,7 +626,7 @@ class CleanJob:
         min_age = cat.get("min_age_min", 0) * 60
         now = time.time()
         freed = skipped = removed = 0
-        n = len(entries)
+        keep = []  # 通过 min_age 筛选、待删除的 (path, size)；目录整体不进回收站
         for i, e in enumerate(entries):
             p, s, mt = e[0], e[1], e[2]
             if self.stop.is_set():
@@ -538,24 +636,56 @@ class CleanJob:
             if min_age and mt and (now - mt) < min_age:
                 skipped += 1
                 continue
-            if self.dry:
-                freed += s
-                continue
-            try:
-                os.remove(p)
-                freed += s
-                removed += 1
-            except OSError:
-                skipped += 1
+            keep.append((p, s))
+        if self.dry:
+            freed = sum(s for _, s in keep)
+        else:
+            ok, failed = delete_files([p for p, _ in keep])
+            size_by_path = dict(keep)
+            freed = sum(size_by_path.get(p, 0) for p in ok)
+            skipped += len(failed)  # 无法送入回收站/删除失败 → 计入跳过，绝不强删
+            removed = len(ok)
+            self.samples[cat["id"]] = ok[:5]
+            if self.via == "recycle":
+                self.per[cat["id"]]["recycled"] = removed
         if not self.dry and not self.stop.is_set():
-            for d in reversed(dirs):
+            for d in reversed(dirs):  # 空目录直接移除，失败忽略
                 try:
                     os.rmdir(d)
                 except OSError:
                     pass
-        head = "预览模式，未实际删除" if self.dry else "已删除 %d 个文件" % removed
-        tail = ("；跳过 %d 个（被占用/无权限/保留期内）" % skipped) if skipped else ""
+        if self.dry:
+            head = "预览模式，未实际删除"
+        elif self.via == "permanent":
+            head = "已永久删除 %d 个文件" % removed
+        else:
+            head = "已送入回收站 %d 个文件" % removed
+        tail = ("；跳过 %d 个（被占用/保留期内/无法送入回收站）" % skipped) if skipped else ""
         return freed, skipped, head + tail
+
+    def _write_history(self, plan):
+        try:
+            with self.lock:
+                per = {cid: dict(i) for cid, i in self.per.items()}
+            running = []
+            for tid in {CAT_BY_ID.get(cid, {}).get("tool") for cid in plan}:
+                if tid and TOOLS.get(tid) and tool_running(tid):
+                    running.append(TOOLS[tid].get("name", tid))
+            record = dict(
+                ts=time.strftime("%Y-%m-%dT%H:%M:%S"),
+                via=self.via,
+                ids=sorted(plan.keys()),
+                total_freed=sum(i["freed"] for i in per.values()),
+                total_skipped=sum(i["skipped"] for i in per.values()),
+                per={cid: dict(freed=i["freed"], skipped=i["skipped"],
+                               recycled=i.get("recycled", 0), note=i["note"])
+                     for cid, i in per.items()},
+                samples={cid: self.samples.get(cid, []) for cid in plan},
+                running_tools=sorted(set(running)),
+            )
+            append_history(record)
+        except Exception as e:
+            log("写入清理历史失败: " + str(e))
 
     def snapshot(self):
         with self.lock:
@@ -563,8 +693,17 @@ class CleanJob:
             status, current = self.status, self.current
         total_freed = sum(i["freed"] for i in per.values())
         total_skipped = sum(i["skipped"] for i in per.values())
+        involved = {CAT_BY_ID.get(cid, {}).get("tool") for cid in per}
+        untouched_locked = [c["id"] for c in CATEGORIES
+                            if c.get("locked") and c.get("tool") in involved]
+        untouched_migrate = [c["id"] for c in CATEGORIES
+                             if c.get("risk") == "migrate" and c.get("tool") in involved
+                             and SCAN.per.get(c["id"], {}).get("size", 0) > 0]
         return dict(status=status, current=current, per=per,
-                    total_freed=total_freed, total_skipped=total_skipped)
+                    total_freed=total_freed, total_skipped=total_skipped,
+                    via=self.via,
+                    report=dict(untouched_locked=untouched_locked,
+                                untouched_migrate=untouched_migrate))
 
 
 SCAN = ScanJob(CATEGORIES)
@@ -686,11 +825,56 @@ class MoveJob:
 MOVE = MoveJob()
 
 
+# ----------------------------------------------------------------------------
+# 清理历史（仅本机：%LOCALAPPDATA%\DeepClean\history.jsonl，DEEPCLEAN_HISTORY 可覆盖）
+# 记录每次清理的汇总与少量样例路径，不做按文件还原
+# ----------------------------------------------------------------------------
+def history_file():
+    return os.environ.get("DEEPCLEAN_HISTORY") or os.path.join(
+        os.environ.get("LOCALAPPDATA", os.path.join(os.path.expanduser("~"), "AppData", "Local")),
+        "DeepClean", "history.jsonl")
+
+
+def append_history(record):
+    path = history_file()
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "a", encoding="utf-8") as f:
+        f.write(json.dumps(record, ensure_ascii=False) + "\n")
+    try:  # 超过 1MB 从头切掉最旧行，保留最近约 200 行
+        if os.path.getsize(path) > 1024 * 1024:
+            with open(path, encoding="utf-8") as f:
+                lines = f.read().splitlines()
+            with open(path, "w", encoding="utf-8") as f:
+                f.write("\n".join(lines[-200:]) + "\n")
+    except OSError:
+        pass
+
+
+def read_history(limit):
+    try:
+        with open(history_file(), encoding="utf-8") as f:
+            lines = f.read().splitlines()
+    except OSError:
+        return []
+    items = []
+    for line in reversed(lines):  # 最新在前
+        try:
+            items.append(json.loads(line))
+        except Exception:
+            continue
+        if len(items) >= limit:
+            break
+    return items
+
+
 def build_clean_plan(ids, excluded=None, confirm_danger=False):
     if SCAN.status in ("running", "stopping"):
         return None, "扫描正在进行中，请等待完成或先停止扫描"
     if SCAN.status not in ("done", "stopped"):
         return None, "请先完成一次扫描"
+    if "recycle-bin" in set(ids) and len(set(ids)) > 1:
+        # 送回收站的文件可能马上被 SHEmptyRecycleBin 倒掉，禁止同一趟混合清理
+        return None, "清空回收站请单独执行，不能与其它清理项一起勾选"
     excluded = set(excluded or [])
     plan = {}
     for cid in ids:
@@ -709,7 +893,7 @@ def build_clean_plan(ids, excluded=None, confirm_danger=False):
             entries = [e for e in entries if len(e) < 4 or e[3] not in excluded]
         if cat.get("special_size"):
             # 回收站/还原点/系统文件等特殊类别：大小来自系统接口，无法按目录拆分
-            size = SCAN.per[cid]["size"]
+            size = SCAN.per.get(cid, {}).get("size", 0)
         else:
             size = sum(e[1] for e in entries)
         plan[cid] = dict(size=size, entries=entries,
@@ -876,6 +1060,10 @@ def run_cli(args):
         if plan is None:
             print(json.dumps(dict(ok=False, error=err), ensure_ascii=False))
             return 1
+        for tool in sorted({CAT_BY_ID.get(cid, {}).get("tool") for cid in plan}):
+            if tool and tool_running(tool):
+                print("警告: %s 正在运行。清理其缓存可能导致卡顿或写入失败，建议先退出再清。"
+                      % TOOLS.get(tool, {}).get("name", tool), file=sys.stderr)
         if not a.yes and not a.dry:
             out = dict(ok=False, need_confirmation=True,
                        message="这是清理计划。确认无误后加 --yes 执行；只想看将删除的文件明细可加 --dry",
@@ -893,10 +1081,12 @@ def run_cli(args):
         snap = CLEAN.snapshot()
         du = shutil.disk_usage(DRIVE_ROOT)
         print(json.dumps(dict(ok=snap["status"] == "done", status=snap["status"], dry=bool(a.dry),
+                              via=snap.get("via", "recycle"),
                               freed=snap["total_freed"], skipped=snap["total_skipped"],
                               free_now=du.free, skipped_locked=skipped, skipped_danger=unconfirmed,
                               per={cid: dict(status=i["status"], freed=i["freed"],
-                                             skipped=i["skipped"], note=i["note"])
+                                             skipped=i["skipped"], recycled=i.get("recycled", 0),
+                                             note=i["note"])
                                     for cid, i in snap["per"].items()}),
                          ensure_ascii=False, indent=2))
         return 0 if snap["status"] == "done" else 1
@@ -977,7 +1167,7 @@ def api_state():
             size=i.get("size", 0), count=i.get("count", 0),
             note=i.get("note", ""), status=i.get("status", "pending"),
         ))
-    return dict(admin=is_admin(), drive=dict(total=du.total, used=du.used, free=du.free),
+    return dict(admin=is_admin(), win=IS_WIN, drive=dict(total=du.total, used=du.used, free=du.free),
                 drive_letter=DRIVE, tools=tools, buckets=buckets)
 
 
@@ -1076,6 +1266,16 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(api_roots())
             elif path == "/api/move/progress":
                 self._json(MOVE.snapshot())
+            elif path == "/api/history":
+                limit = 20
+                if "?" in self.path:
+                    for part in self.path.split("?", 1)[1].split("&"):
+                        if part.startswith("limit="):
+                            try:
+                                limit = max(1, min(100, int(part[6:])))
+                            except ValueError:
+                                pass
+                self._json(dict(ok=True, items=read_history(limit)))
             elif path == "/favicon.ico":
                 self._send(204, b"", "image/x-icon")
             else:
@@ -1124,6 +1324,12 @@ class Handler(BaseHTTPRequestHandler):
             elif path == "/api/relaunch_admin":
                 ok, msg = relaunch_as_admin()
                 self._json(dict(ok=ok, msg=msg))
+            elif path == "/api/open_recycle":
+                if IS_WIN:
+                    run_cmd(["explorer.exe", "shell:RecycleBinFolder"], 15)
+                    self._json(dict(ok=True))
+                else:
+                    self._json(dict(ok=False, error="仅支持 Windows"))
             else:
                 self._json(dict(error="not found"), 404)
         except Exception as e:
