@@ -8,6 +8,7 @@ python -m pip install --quiet pyinstaller || (echo PyInstaller install failed & 
 echo [2/3] Building (about 1-2 minutes)...
 python -m PyInstaller --noconfirm --onefile --noconsole ^
   --name DeepClean ^
+  --icon "assets\icon.ico" ^
   --add-data "static;static" ^
   --add-data "rules;rules" ^
   app.py || (echo Build failed & pause & exit /b 1)

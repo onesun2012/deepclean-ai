@@ -44,6 +44,9 @@ MAX_FILES_PER_CAT = 400000  # 单类别统计上限，防止极端目录拖垮�
 
 
 LOG_FILE = os.path.join(APP_DIR, "clearc.log")
+# PyInstaller 单文件模式下 APP_DIR 在临时解包目录里，日志放到 exe 旁边才找得到
+if getattr(sys, "frozen", False):
+    LOG_FILE = os.path.join(os.path.dirname(os.path.abspath(sys.executable)), "clearc.log")
 
 
 def log(msg):
@@ -1138,39 +1141,92 @@ def find_port():
     return 0
 
 
-def _open_browser(url):
-    """打开结果页面：默认浏览器 → 常见浏览器路径 → 弹窗给出地址。
+class SHELLEXECUTEINFO(ctypes.Structure):
+    _fields_ = [("cbSize", ctypes.c_ulong), ("fMask", ctypes.c_ulong),
+                ("hwnd", ctypes.c_void_p), ("lpVerb", ctypes.c_wchar_p),
+                ("lpFile", ctypes.c_wchar_p), ("lpParameters", ctypes.c_wchar_p),
+                ("lpDirectory", ctypes.c_wchar_p), ("nShow", ctypes.c_int),
+                ("hInstApp", ctypes.c_void_p), ("lpIDList", ctypes.c_void_p),
+                ("lpClass", ctypes.c_wchar_p), ("hkeyClass", ctypes.c_void_p),
+                ("dwHotKey", ctypes.c_ulong), ("hIconOrMonitor", ctypes.c_void_p),
+                ("hProcess", ctypes.c_void_p)]
 
-    Windows 沙盒 / 精简系统可能没有注册 http 协议关联（os.startfile 报
-    “无法打开此 http 链接”），此时按常见安装路径直接拉起浏览器，
-    仍失败则弹窗告知手动访问，保证服务本身始终可用。
+
+def _shell_open(url):
+    """ShellExecute 打开 URL（带 SEE_MASK_FLAG_NO_UI）。
+
+    os.startfile 不带 NO_UI：Windows 沙盒 / 精简系统没有注册 http 关联时，
+    会先弹出系统「无法打开此 http 链接」错误框。这里带 NO_UI 标志，
+    失败时静默返回 False，交由上层走浏览器路径兜底。
     """
+    if not IS_WIN:
+        return False
     try:
-        os.startfile(url)
-        return
+        sei = SHELLEXECUTEINFO()
+        sei.cbSize = ctypes.sizeof(sei)
+        sei.fMask = 0x00000400  # SEE_MASK_FLAG_NO_UI
+        sei.nShow = 1           # SW_SHOWNORMAL
+        sei.lpFile = url
+        return bool(ctypes.windll.shell32.ShellExecuteExW(ctypes.byref(sei)))
     except Exception:
-        pass
-    if webbrowser.open(url):
-        return
-    for browser in (
-        r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
-        r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
-        r"C:\Program Files\Google\Chrome\Application\chrome.exe",
-        r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
-        r"C:\Program Files\Mozilla Firefox\firefox.exe",
-    ):
-        if os.path.exists(browser):
-            try:
-                subprocess.Popen([browser, url])
-                return
-            except Exception:
-                pass
+        return False
+
+
+def _has_http_association():
+    """注册表里是否登记了 http 协议的打开方式（Windows 沙盒等精简系统没有）"""
+    import winreg
     try:
-        ctypes.windll.user32.MessageBoxW(
-            None, "深清已在后台运行。\n\n请用浏览器打开：%s\n\n（关闭本提示不影响清理功能）" % url,
-            "深清 DeepClean", 0x40)
-    except Exception:
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER,
+                            r"Software\Microsoft\Windows\Shell\Associations"
+                            r"\UrlAssociations\http\UserChoice") as k:
+            if winreg.QueryValueEx(k, "ProgId")[0]:
+                return True
+    except OSError:
         pass
+    try:
+        with winreg.OpenKey(winreg.HKEY_CLASSES_ROOT, r"http\shell\open\command") as k:
+            return bool(winreg.QueryValueEx(k, None)[0])
+    except OSError:
+        return False
+
+
+def _open_browser(url):
+    """打开结果页面。
+
+    已知浏览器安装路径优先：Windows 沙盒等精简系统的 http 协议关联不可靠
+    （注册表项可能存在但指向不可用的处理器，ShellExecute 还会弹系统错误框），
+    所以只要在本机找到 Edge/Chrome/Firefox 就直接拉起，完全不碰协议关联；
+    实在没有已知浏览器时才尝试 ShellExecute（NO_UI），最后弹窗给出地址。
+    """
+    if IS_WIN:
+        for browser in (
+            r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+            r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
+            r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+            r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+            os.path.join(os.environ.get("LOCALAPPDATA", ""), "Google", "Chrome", "Application", "chrome.exe"),
+            r"C:\Program Files\Mozilla Firefox\firefox.exe",
+            r"C:\Program Files (x86)\Mozilla Firefox\firefox.exe",
+        ):
+            if browser and os.path.exists(browser):
+                log("打开结果页面: " + browser)
+                try:
+                    subprocess.Popen([browser, url])
+                    return
+                except Exception as e:
+                    log("启动浏览器失败 %s: %s" % (browser, e))
+        if _has_http_association() and _shell_open(url):
+            log("已通过系统默认浏览器打开")
+            return
+        log("未找到已知浏览器且默认浏览器打开失败: " + url)
+        try:
+            ctypes.windll.user32.MessageBoxW(
+                None, "深清已在后台运行。\n\n请用浏览器打开：%s\n\n（关闭本提示不影响清理功能）" % url,
+                "深清 DeepClean", 0x40)
+        except Exception:
+            pass
+    else:
+        webbrowser.open(url)
 
 
 def main():
