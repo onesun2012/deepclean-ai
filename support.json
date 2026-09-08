@@ -1,0 +1,9 @@
+{
+  "links": [
+    { "label": "微信赞赏", "image": "/support/donate-wechat.png" },
+    { "label": "支付宝", "image": "/support/donate-alipay.png" },
+    { "label": "♥ GitHub Sponsors", "url": "https://github.com/sponsors/onesun2012" },
+    { "label": "Ko-fi", "url": "https://ko-fi.com/onesun" },
+    { "label": "爱发电 Afdian", "url": "https://afdian.com/a/onesun" }
+  ]
+}

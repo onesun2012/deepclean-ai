@@ -53,11 +53,14 @@ def main():
     os.environ["CLEAR_C_SANDBOX"] = sandbox
     os.environ["DEEPCLEAN_HISTORY"] = hist
     import app
+    app.is_admin = lambda: False  # Exercise normal-user adapter even on an elevated CI runner.
 
     app.SCAN.cats = [app.CAT_BY_ID["sandbox"]]
     scan_sandbox()
 
     def run_clean(ids, dry=False):
+        if app.SCAN.status == "stale":
+            scan_sandbox()
         plan, err = app.build_clean_plan(ids)
         assert plan is not None, err
         app.CLEAN.start(plan, dry)
@@ -101,7 +104,7 @@ def main():
         plan, err = app.build_clean_plan(["sandbox", "recycle-bin"])
         check("recycle-bin 混勾被拒绝", plan is None and "单独执行" in err)
         plan2, _ = app.build_clean_plan(["recycle-bin"])
-        check("recycle-bin 单独可进计划", plan2 is not None)
+        check("未扫描的 recycle-bin 不可进计划", plan2 is None)
 
         # ---- b. mock Shell 失败：计入 skipped、不 os.remove ----
         f_b = os.path.join(sandbox, "b.txt")
@@ -137,6 +140,7 @@ def main():
 
         def http(method, path, headers=None):
             r = urllib.request.Request(base + path, method=method)
+            r.add_header("X-DeepClean-Token", app.API_TOKEN)
             for k, v in (headers or {}).items():
                 r.add_header(k, v)
             try:

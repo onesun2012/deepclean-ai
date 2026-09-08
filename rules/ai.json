@@ -158,15 +158,17 @@
     {
       "id": "cursor-index",
       "tool": "cursor",
-      "risk": "rebuildable",
+      "risk": "danger",
       "min_age_min": 60,
       "labelZh": "代码索引",
       "labelEn": "Code index",
-      "hintZh": "工作区语义索引与存储。可删，下次打开项目会重新扫描。",
-      "hintEn": "Workspace semantic index and storage. Rebuilt when you reopen a project.",
+      "hintZh": "目录可能包含持久状态或运行组件，暂不清理，待上游版本验证后再开放。",
+      "hintEn": "May contain persistent state or runtime components. Cleaning disabled pending version-specific verification.",
       "paths": [
         "%APPDATA%\\Cursor\\User\\workspaceStorage"
-      ]
+      ],
+      "locked": true,
+      "default_off": true
     },
     {
       "id": "cursor-file-history",
@@ -272,16 +274,18 @@
     {
       "id": "codex-runtime",
       "tool": "codex",
-      "risk": "rebuildable",
+      "risk": "danger",
       "min_age_min": 1440,
       "labelZh": "运行时缓存",
       "labelEn": "Runtime cache",
-      "hintZh": "下载的沙箱运行时，删除后下次启动会自动重新下载。",
-      "hintEn": "Downloaded sandbox runtimes. Re-downloaded on next launch.",
+      "hintZh": "目录可能包含持久状态或运行组件，暂不清理，待上游版本验证后再开放。",
+      "hintEn": "May contain persistent state or runtime components. Cleaning disabled pending version-specific verification.",
       "paths": [
         "%USERPROFILE%\\.cache\\codex-runtimes",
         "%LOCALAPPDATA%\\OpenAI\\Codex"
-      ]
+      ],
+      "locked": true,
+      "default_off": true
     },
     {
       "id": "codex-sessions",
@@ -330,16 +334,18 @@
     {
       "id": "gemini-cache",
       "tool": "gemini",
-      "risk": "safe",
+      "risk": "danger",
       "min_age_min": 60,
       "labelZh": "CLI 缓存",
       "labelEn": "CLI cache",
-      "hintZh": "临时文件与日志，可安全删除。",
-      "hintEn": "Temp files and logs. Safe to delete.",
+      "hintZh": "目录可能包含持久状态或运行组件，暂不清理，待上游版本验证后再开放。",
+      "hintEn": "May contain persistent state or runtime components. Cleaning disabled pending version-specific verification.",
       "paths": [
         "%USERPROFILE%\\.gemini\\tmp",
         "%USERPROFILE%\\.gemini\\cache"
-      ]
+      ],
+      "locked": true,
+      "default_off": true
     },
     {
       "id": "openclaw-cache",
@@ -505,15 +511,17 @@
     {
       "id": "updaters",
       "tool": "updaters",
-      "risk": "safe",
+      "risk": "danger",
       "min_age_min": 720,
       "labelZh": "应用更新包缓存",
       "labelEn": "Updater packages",
-      "hintZh": "各桌面应用更新器下载的安装包残留，安装完成即无用。",
-      "hintEn": "Installer leftovers from desktop app updaters. Useless once installed.",
+      "hintZh": "目录可能包含持久状态或运行组件，暂不清理，待上游版本验证后再开放。",
+      "hintEn": "May contain persistent state or runtime components. Cleaning disabled pending version-specific verification.",
       "paths": [
         "%LOCALAPPDATA%\\*-updater"
-      ]
+      ],
+      "locked": true,
+      "default_off": true
     }
   ]
 }
