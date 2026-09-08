@@ -40,6 +40,7 @@ python "{{APP_DIR}}\app.py" cli move --tool ollama --to D --dry
 
 - `cli scan` 输出结构：`tools[]`（含 running/last_used_days/size）、`buckets[]`（含 risk/locked/cleanable/size/roots 目录明细）、`totals{safe,review,migrate}`、`drive{free,total}`
 - `cli clean` 需要时会自动先扫描；每分项支持 `--exclude-root` 排除子目录
+- 默认回收站。`cli clean --ids npm-store,python-cache --permanent` 输出永久删除计划，`--yes` 执行、`--dry` 只预览。此选项仅支持用户 Temp、pip HTTP、npm `_cacache`、NuGet HTTP、Electron 下载缓存中至少 7 天未修改的文件；说明实际目录与重下载时间/流量、离线或源失效无法恢复的影响。普通清理授权不自动包含永久删除；遵守用户已明确授权的范围。
 
 ## 标准工作流程
 

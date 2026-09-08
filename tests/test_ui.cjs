@@ -23,7 +23,7 @@ const assert = require('node:assert/strict');
     let preview, executed, scanIds, stateCalls = 0, failSpace = false;
     const buckets = [
       {id:'ai-a',tool:'ai',category:'assistant',name:'AI cache A',risk:'safe',size:100},
-      {id:'ai-b',tool:'ai',category:'assistant',name:'AI cache B',risk:'safe',size:200},
+      {id:'ai-b',tool:'ai',category:'assistant',name:'AI cache B',risk:'safe',size:200,direct_delete:true},
       {id:'dev-a',tool:'dev',category:'dev',name:'Dev cache',risk:'safe',size:500}
     ];
     const tools = [{id:'ai',name:'AI fixture',category:'assistant'}, {id:'dev',name:'Dev fixture',category:'dev'}];
@@ -43,10 +43,10 @@ const assert = require('node:assert/strict');
       } else if (endpoint === '/api/roots') data = {ok:true,categories:{}};
       else if (endpoint === '/api/clean/preview') {
         preview = request.postDataJSON();
-        data = {ok:true,plan_token:'approved-fixture',per:{'ai-b':{size:200,count:1}}};
+        data = {ok:true,plan_token:'approved-fixture',per:{'ai-b':{size:preview.delete_mode === 'permanent' ? 80 : 200,count:1,note:'下载缓存；离线安装可能失败',note_en:'Downloads may fail offline',roots:['C:\\fixture\\http']}}};
       } else if (endpoint === '/api/clean') {
         executed = request.postDataJSON(); data = {ok:true};
-      } else if (endpoint === '/api/clean/progress') data = {status:'done',total_freed:200,total_skipped:0,via:'recycle',per:{'ai-b':{freed:200}},report:{}};
+      } else if (endpoint === '/api/clean/progress') data = {status:'done',total_freed:200,total_skipped:0,via:executed?.confirm_permanent ? 'permanent' : 'recycle',per:{'ai-b':{freed:200}},report:{}};
       else data = {ok:true,items:[]};
       await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(data)});
     });
@@ -88,6 +88,21 @@ const assert = require('node:assert/strict');
     await page.locator('[data-toolscan="ai"]').click();
     await page.waitForFunction(() => !scanning);
     assert.deepEqual(scanIds, ['ai-a','ai-b']);
+    await page.evaluate(() => { selected['ai-a'] = true; selected['ai-b'] = true; render(); });
+    await page.locator('#btnDirect').click();
+    await page.locator('#maskConfirm.show').waitFor();
+    assert.deepEqual(preview.ids, ['ai-b']);
+    assert.equal(preview.delete_mode, 'permanent');
+    assert.equal(await page.locator('#confirmTotal').textContent(), '80 B');
+    assert.match(await page.locator('#maskConfirm .sub').textContent(), /永久删除.*7 天.*下载源失效/);
+    assert.match(await page.locator('#confirmList').textContent(), /离线安装可能失败.*C:\\fixture\\http/s);
+    assert.equal(await page.locator('#btnConfirmOk').textContent(), '确认永久删除');
+    await page.locator('#btnConfirmOk').click();
+    await page.locator('#maskSuccess.show').waitFor();
+    assert.deepEqual(executed, {plan_token:'approved-fixture',dry:false,confirm_permanent:true});
+    assert.match(await page.locator('#successReport').textContent(), /永久删除/);
+    assert.equal(await page.locator('#btnOpenRecycle').isVisible(), false);
+    await page.locator('#btnSuccessClose').click();
     await page.locator('#btnSettings').click();
     await page.locator('#btnQuit').click();
     await page.getByText('DeepClean 已退出，可以关闭此页面。').waitFor();

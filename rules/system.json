@@ -5,85 +5,99 @@
       "id": "temp",
       "name": "临时文件",
       "category": "system",
-      "processes": []
+      "processes": [],
+      "nameEn": "Temporary files"
     },
     {
       "id": "browser",
       "name": "浏览器缓存",
       "category": "system",
-      "processes": []
+      "processes": [],
+      "nameEn": "Browser cache"
     },
     {
       "id": "shader",
       "name": "显卡着色器",
       "category": "system",
-      "processes": []
+      "processes": [],
+      "nameEn": "GPU shaders"
     },
     {
       "id": "wlogs",
       "name": "系统日志",
       "category": "system",
-      "processes": []
+      "processes": [],
+      "nameEn": "System logs"
     },
     {
       "id": "crash",
       "name": "崩溃转储",
       "category": "system",
-      "processes": []
+      "processes": [],
+      "nameEn": "Crash dumps"
     },
     {
       "id": "msapp",
       "name": "微软应用",
       "category": "system",
-      "processes": []
+      "processes": [],
+      "nameEn": "Microsoft apps"
     },
     {
       "id": "recent",
       "name": "历史记录",
       "category": "system",
-      "processes": []
+      "processes": [],
+      "nameEn": "Recent items"
     },
     {
       "id": "syscache",
       "name": "系统缓存",
       "category": "system",
-      "processes": []
+      "processes": [],
+      "nameEn": "System cache"
     },
     {
       "id": "residual",
       "name": "安装残留",
       "category": "system",
-      "processes": []
+      "processes": [],
+      "nameEn": "Install leftovers"
     },
     {
       "id": "recycle",
       "name": "回收站",
       "category": "system",
-      "processes": []
+      "processes": [],
+      "nameEn": "Recycle Bin"
     },
     {
       "id": "winsxs",
       "name": "WinSxS",
       "category": "system",
-      "processes": []
+      "processes": [],
+      "nameEn": "WinSxS"
     },
     {
       "id": "pagefile",
       "name": "虚拟内存",
       "category": "system",
-      "processes": []
+      "processes": [],
+      "nameEn": "Virtual memory"
     },
     {
       "id": "hibernate",
       "name": "休眠文件",
       "category": "system",
-      "processes": []
+      "processes": [],
+      "nameEn": "Hibernate file"
     },
     {
       "id": "restore",
       "name": "系统还原点",
       "category": "system",
-      "processes": []
+      "processes": [],
+      "nameEn": "System restore points"
     }
   ],
   "buckets": [

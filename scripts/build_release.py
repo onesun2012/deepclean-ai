@@ -22,6 +22,12 @@ manifest = dict(python=sys.version, platform=platform.platform(),
                 executable_sha256=digest(destination / "DeepClean.exe"), signed=False)
 (destination / "build-manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
 (destination / "SHA256SUMS.txt").write_text(manifest["executable_sha256"] + "  DeepClean.exe\n", encoding="ascii")
-for name in ("LICENSE", "README.md", "退出工具.bat"):
-    shutil.copy2(root / name, destination / name)
+extras = ["LICENSE", "README.md", "docs/RELEASE-CANDIDATE.md", "docs/SITE.md"]
+exit_bat = next((p.name for p in root.glob("*.bat") if "退出" in p.name), None)
+if exit_bat:
+    extras.append(exit_bat)
+for name in extras:
+    src = root / name
+    if src.exists():
+        shutil.copy2(src, destination / src.name)
 print("Candidate: " + str(destination / "DeepClean.exe"))

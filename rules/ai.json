@@ -7,7 +7,8 @@
       "category": "assistant",
       "processes": [
         "Cursor.exe"
-      ]
+      ],
+      "nameEn": "Cursor"
     },
     {
       "id": "claude",
@@ -15,7 +16,8 @@
       "category": "assistant",
       "processes": [
         "claude.exe"
-      ]
+      ],
+      "nameEn": "Claude Code"
     },
     {
       "id": "zcode",
@@ -23,7 +25,8 @@
       "category": "assistant",
       "processes": [
         "ZCode.exe"
-      ]
+      ],
+      "nameEn": "ZCode"
     },
     {
       "id": "codex",
@@ -31,13 +34,15 @@
       "category": "assistant",
       "processes": [
         "codex.exe"
-      ]
+      ],
+      "nameEn": "Codex"
     },
     {
       "id": "copilot",
       "name": "GitHub Copilot",
       "category": "assistant",
-      "processes": []
+      "processes": [],
+      "nameEn": "GitHub Copilot"
     },
     {
       "id": "windsurf",
@@ -45,19 +50,22 @@
       "category": "assistant",
       "processes": [
         "Windsurf.exe"
-      ]
+      ],
+      "nameEn": "Windsurf"
     },
     {
       "id": "gemini",
       "name": "Gemini CLI",
       "category": "assistant",
-      "processes": []
+      "processes": [],
+      "nameEn": "Gemini CLI"
     },
     {
       "id": "openclaw",
       "name": "OpenClaw",
       "category": "assistant",
-      "processes": []
+      "processes": [],
+      "nameEn": "OpenClaw"
     },
     {
       "id": "trae",
@@ -65,7 +73,8 @@
       "category": "assistant",
       "processes": [
         "Trae.exe"
-      ]
+      ],
+      "nameEn": "Trae"
     },
     {
       "id": "qoder",
@@ -73,13 +82,15 @@
       "category": "assistant",
       "processes": [
         "Qoder.exe"
-      ]
+      ],
+      "nameEn": "Qoder"
     },
     {
       "id": "codebuddy",
       "name": "CodeBuddy",
       "category": "assistant",
-      "processes": []
+      "processes": [],
+      "nameEn": "CodeBuddy"
     },
     {
       "id": "kimi",
@@ -87,7 +98,8 @@
       "category": "cn-app",
       "processes": [
         "Kimi.exe"
-      ]
+      ],
+      "nameEn": "Kimi Desktop"
     },
     {
       "id": "doubao",
@@ -95,7 +107,8 @@
       "category": "cn-app",
       "processes": [
         "Doubao.exe"
-      ]
+      ],
+      "nameEn": "Doubao"
     },
     {
       "id": "coze",
@@ -103,7 +116,8 @@
       "category": "cn-app",
       "processes": [
         "Coze.exe"
-      ]
+      ],
+      "nameEn": "Coze"
     },
     {
       "id": "ima",
@@ -111,7 +125,8 @@
       "category": "cn-app",
       "processes": [
         "ima.exe"
-      ]
+      ],
+      "nameEn": "Tencent ima"
     },
     {
       "id": "quark",
@@ -119,7 +134,8 @@
       "category": "cn-app",
       "processes": [
         "Quark.exe"
-      ]
+      ],
+      "nameEn": "Quark"
     },
     {
       "id": "tabbit",
@@ -127,13 +143,15 @@
       "category": "cn-app",
       "processes": [
         "Tabbit.exe"
-      ]
+      ],
+      "nameEn": "Tabbit"
     },
     {
       "id": "updaters",
       "name": "应用更新器",
       "category": "cn-app",
-      "processes": []
+      "processes": [],
+      "nameEn": "App updaters"
     }
   ],
   "buckets": [

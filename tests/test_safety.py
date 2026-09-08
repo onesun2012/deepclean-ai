@@ -38,6 +38,16 @@ def wait(job):
 
 
 class SafetyTests(unittest.TestCase):
+    def test_exclusive_listener_does_not_share_ports(self):
+        with ThreadingHTTPServer(("127.0.0.1", 0), app.Handler) as occupied:
+            with self.assertRaises(OSError):
+                app.LocalHTTPServer(occupied.server_address, app.Handler)
+        with app.LocalHTTPServer(("127.0.0.1", 0), app.Handler) as exclusive:
+            with socket.socket() as contender:
+                contender.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                with self.assertRaises(OSError):
+                    contender.bind(exclusive.server_address)
+
     def setUp(self):
         self.admin = patch.object(app, "is_admin", return_value=False)
         self.admin.start()

@@ -16,5 +16,6 @@ jobs:
       - run: python tests/test_http.py
       - run: python tests/test_recycle.py
       - run: python tests/test_safety.py
+      - run: python tests/test_permanent.py
       - run: python tests/test_sandbox.py
       - run: python tests/test_lifecycle.py

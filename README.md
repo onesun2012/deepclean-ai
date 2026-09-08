@@ -19,6 +19,17 @@
 4. 保留期内的文件、被占用文件自动跳过
 5. 清理只删除扫描时记录的、属于规则路径的文件
 6. 普通清理请求 Windows Shell 回收文件，失败不回退强删；Shell 的回收能力取决于介质和系统设置，不能保证所有环境均可恢复。处理的逻辑大小不等于磁盘释放空间
+7. “直接释放空间”是单独的永久删除选项，只处理白名单内至少 7 天未修改的文件；确认框显示实际目录、大小和重下载影响，不随普通清理自动启用。
+
+### 直接释放空间（永久删除）
+
+扫描后勾选分项，再点“直接释放空间”。支持用户 Temp、pip HTTP、npm `_cacache`、NuGet HTTP 和 Electron 下载缓存；同一分项的其他目录和不支持的已选分项不参与。确认框中的大小已过滤保留期和目录范围，可能小于扫描总量。具体路径、影响与依据见 [直接删除策略](docs/DIRECT-CLEAN.md)。
+
+删除的缓存可能需要联网重新下载，消耗时间和流量；离线或上游删除版本时可能无法恢复。请先结束相关安装和构建任务。被占用、身份变化或无权限的文件跳过，空目录保留；旧文件不一定无用，7 天仅是保留条件。
+
+Windows 更新、Installer 维护缓存、WinSxS 和模型不纳入此选项，不按 `.exe`/`.msi` 或“几个月前”统一删除。更新和旧系统安装文件请用系统“临时文件”或“磁盘清理”处理。
+
+CLI 先运行 `python app.py cli clean --ids npm-store,python-cache --permanent` 查看目录、大小和影响；确认后加 `--yes` 执行。`--dry` 只预览，不带 `--permanent` 的清理仍采用回收站方式。
 
 ## 下载与使用
 
@@ -89,11 +100,12 @@ python tests/test_rules.py
 python tests/test_http.py
 python tests/test_recycle.py
 python tests/test_safety.py
+python tests/test_permanent.py
 python tests/test_sandbox.py
 python tests/test_lifecycle.py
 ```
 
-`CLEAR_C_SANDBOX` 仅供测试：扫描仅限测试类别，永久删除也必须位于该目录且路径无重解析点。已移除 `DEEPCLEAN_PERMANENT` 和非 Windows 自动永久删除回退。请勿在正常启动中设置测试变量。
+`CLEAR_C_SANDBOX` 仅供测试：扫描仅限测试类别，测试删除适配器也必须位于该目录且路径无重解析点。已移除 `DEEPCLEAN_PERMANENT` 和非 Windows 自动永久删除回退。请勿在正常启动中设置测试变量。
 
 ### 启动、退出与扫描范围
 

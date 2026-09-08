@@ -5,7 +5,8 @@
       "id": "hf",
       "name": "Hugging Face",
       "category": "model",
-      "processes": []
+      "processes": [],
+      "nameEn": "Hugging Face"
     },
     {
       "id": "ollama",
@@ -13,13 +14,15 @@
       "category": "model",
       "processes": [
         "ollama.exe"
-      ]
+      ],
+      "nameEn": "Ollama"
     },
     {
       "id": "pytorch",
       "name": "PyTorch / CUDA",
       "category": "model",
-      "processes": []
+      "processes": [],
+      "nameEn": "PyTorch / CUDA"
     },
     {
       "id": "lmstudio",
@@ -27,7 +30,8 @@
       "category": "model",
       "processes": [
         "LM Studio.exe"
-      ]
+      ],
+      "nameEn": "LM Studio"
     }
   ],
   "buckets": [

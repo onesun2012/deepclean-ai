@@ -21,7 +21,7 @@ import os
 import re
 import shutil
 import secrets
-from safety import within, plain_path, fingerprint
+from safety import within, plain_path, fingerprint, delete_verified_file
 from urllib.parse import urlsplit
 import socket
 import subprocess
@@ -201,6 +201,62 @@ def protected_roots():
 def protected_file(path, roots=None):
     """Protect persistent roots even if a different rule includes their parent."""
     return any(within(path, root) for root in (roots if roots is not None else protected_roots()))
+
+
+DIRECT_MIN_AGE = 7 * 24 * 60 * 60
+DIRECT_NOTES = {
+    "temp-files": ("仅用户 Temp；旧文件不代表一定无用，请先结束安装和其他任务。", "User Temp only; age does not prove a file is unused. Finish installations and other tasks first."),
+    "python-cache": ("仅 pip HTTP 下载缓存；下次安装可能重新下载，离线安装可能失败。", "pip HTTP cache only; future installs may download again and offline installs may fail."),
+    "npm-store": ("仅 npm _cacache 下载缓存；下次安装可能重新下载，离线安装可能失败；不处理 pnpm store。", "npm _cacache only; future installs may download again and offline installs may fail. pnpm stores stay."),
+    "nuget-cache": ("仅 NuGet HTTP 缓存；还原包时可能重新下载，离线还原可能失败；保留全局包目录。", "NuGet HTTP cache only; restores may download again or fail offline. Global packages stay."),
+    "electron-cache": ("仅 Electron 下载缓存；下次安装需重新下载对应版本，耗费时间和流量；离线或源失效时可能无法恢复。", "Electron download cache only; reinstalling requires time and bandwidth. Recovery may fail offline or if the source disappears."),
+}
+
+
+def direct_roots(cid):
+    """Narrow, code-reviewed allowlist; JSON risk=safe never grants permanent deletion."""
+    if cid == "temp-files":
+        return [os.path.join(LA(), "Temp")]
+    if cid == "python-cache":
+        return [os.path.join(LA(), "pip", "Cache", name) for name in ("http", "http-v2")]
+    if cid == "npm-store":
+        return [os.path.join(LA(), "npm-cache", "_cacache"), E(r"%USERPROFILE%\.npm\_cacache")]
+    if cid == "nuget-cache":
+        return [os.path.join(LA(), "NuGet", "v3-cache")]
+    if cid == "electron-cache":
+        return [os.path.join(LA(), "electron", "Cache")]
+    return []
+
+
+def plan_summary(cid, item):
+    out = dict(size=item["size"], count=len(item["entries"]))
+    if item.get("delete_mode") == "permanent":
+        out.update(note=DIRECT_NOTES.get(cid, ("", ""))[0], note_en=DIRECT_NOTES.get(cid, ("", ""))[1],
+                   roots=[root for root in direct_roots(cid) if any(within(e[0], root) for e in item["entries"])])
+    return out
+
+
+def direct_eligible(cat, path, expected):
+    try:
+        return (not is_admin() and not cat.get("locked") and cat.get("risk") not in ("migrate", "danger")
+                and any(within(path, root) for root in direct_roots(cat["id"]))
+                and plain_path(path) and not protected_file(path)
+                and fingerprint(path) == expected
+                and time.time() - os.lstat(path).st_mtime >= max(DIRECT_MIN_AGE, cat.get("min_age_min", 0) * 60))
+    except (OSError, ValueError, TypeError):
+        return False
+
+
+def delete_direct_files(cat, paths, identities, stop):
+    ok, failed = [], []
+    for path in paths:
+        if stop.is_set():
+            failed.append(path)
+        elif direct_eligible(cat, path, identities.get(path)) and delete_verified_file(path, identities.get(path)):
+            ok.append(path)
+        else:
+            failed.append(path)
+    return ok, failed
 
 
 # ----------------------------------------------------------------------------
@@ -615,6 +671,13 @@ class CleanJob:
     def start(self, plan, dry):
         if is_admin() and not dry:
             return False, "管理员模式仅允许只读扫描，请以普通权限启动"
+        modes = {it.get("delete_mode", "recycle") for it in plan.values()}
+        if len(modes) != 1 or not modes.issubset({"recycle", "permanent"}):
+            return False, "无效的清理方式"
+        mode = next(iter(modes))
+        if mode == "permanent" and any(not direct_roots(cid) or CAT_BY_ID[cid].get("locked")
+                                       or CAT_BY_ID[cid].get("risk") in ("danger", "migrate") for cid in plan):
+            return False, "直接删除只允许已验证的临时文件和下载缓存目录"
         with self.lock:
             if self.status in ("running", "stopping"):
                 return False, "已有清理任务正在进行"
@@ -624,7 +687,7 @@ class CleanJob:
                 OPERATION_LOCK.release()
                 return False, "计划已过期，请重新扫描并确认"
             self.status = "running"
-            self.via = "permanent" if _permanent_delete_allowed() else "recycle"
+            self.via = "permanent" if mode == "permanent" or _permanent_delete_allowed() else "recycle"
             self.samples = {}
             self.per = {cid: dict(status="pending", freed=0, skipped=0, recycled=0,
                                   note="", size=it["size"])
@@ -701,6 +764,9 @@ class CleanJob:
     def _clean_generic(self, cat, it):
         entries, dirs = it["entries"], it["dirs"]
         min_age = cat.get("min_age_min", 0) * 60
+        direct = it.get("delete_mode") == "permanent"
+        if direct:
+            min_age = max(min_age, DIRECT_MIN_AGE)
         now = time.time()
         freed = skipped = removed = 0
         protected = protected_roots()
@@ -726,7 +792,10 @@ class CleanJob:
             if self.dry:
                 freed += sum(size for _, size in keep)
             else:
-                ok, failed = delete_files([p for p, _ in keep])
+                if direct:
+                    ok, failed = delete_direct_files(cat, [p for p, _ in keep], it["identities"], self.stop)
+                else:
+                    ok, failed = delete_files([p for p, _ in keep])
                 sizes = dict(keep)
                 freed += sum(sizes.get(p, 0) for p in ok)
                 skipped += len(failed)
@@ -741,7 +810,7 @@ class CleanJob:
             head = "已永久删除 %d 个文件" % removed
         else:
             head = "已送入回收站 %d 个文件" % removed
-        tail = ("；跳过 %d 个（被占用/保留期内/无法送入回收站）" % skipped) if skipped else ""
+        tail = ("；跳过 %d 个（被占用/文件变化/保留期内/操作失败）" % skipped) if skipped else ""
         return freed, skipped, head + tail
 
     def _write_history(self, plan):
@@ -929,7 +998,11 @@ def read_history(limit):
     return items
 
 
-def build_clean_plan(ids, excluded=None, confirm_danger=False):
+def build_clean_plan(ids, excluded=None, confirm_danger=False, delete_mode="recycle"):
+    if delete_mode not in ("recycle", "permanent"):
+        return None, "无效的清理方式"
+    if delete_mode == "permanent" and any(not direct_roots(cid) for cid in ids):
+        return None, "直接删除只允许已验证的临时文件和下载缓存目录"
     if OPERATION_LOCK.locked():
         return None, "已有扫描或清理任务进行中，请等待完成"
     if SCAN.status in ("running", "stopping"):
@@ -959,16 +1032,21 @@ def build_clean_plan(ids, excluded=None, confirm_danger=False):
         if excluded:
             # 第 4 位是所属 root 目录，被排除的目录整个跳过
             entries = [e for e in entries if not any(within(e[0], root) for root in excluded)]
+        if delete_mode == "permanent":
+            entries = [e for e in entries if direct_eligible(cat, e[0], SCAN.identities.get(e[0]))]
+            if not entries:
+                continue
         if cat.get("special_size"):
             # 回收站/还原点/系统文件等特殊类别：大小来自系统接口，无法按目录拆分
             size = SCAN.per.get(cid, {}).get("size", 0)
         else:
             size = sum(e[1] for e in entries)
-        plan[cid] = dict(size=size, entries=entries, dirs=[],
+        plan[cid] = dict(size=size, entries=entries, dirs=[], delete_mode=delete_mode,
                          scan_id=SCAN.scan_id, expires=time.time() + 300,
                          identities={e[0]: SCAN.identities.get(e[0]) for e in entries})
     if not plan:
-        return None, "未选择任何清理项"
+        return None, ("没有符合条件的旧文件：仅处理白名单内 7 天未修改的文件，管理员模式不可执行"
+                      if delete_mode == "permanent" else "未选择任何清理项")
     return plan, ""
 
 
@@ -1070,6 +1148,7 @@ def run_cli(args):
     cp = sub.add_parser("clean", help="清理指定分项（需要时自动先扫描；locked/migrate 自动跳过，危险分项需 --confirm-danger）")
     cp.add_argument("--ids", required=True, help="分项 id，逗号分隔，如 npm-store,kimi-cache")
     cp.add_argument("--dry", action="store_true", help="预览模式，不实际删除")
+    cp.add_argument("--permanent", action="store_true", help="仅直接删除白名单内至少 7 天未修改的文件，不能从回收站恢复")
     cp.add_argument("--yes", action="store_true", help="确认执行（不带时仅输出清理计划并以退出码 2 结束）")
     cp.add_argument("--confirm-danger", action="store_true",
                     help="未锁定的危险分项（risk=danger）需额外确认才会执行")
@@ -1128,7 +1207,7 @@ def run_cli(args):
         if not ok:
             print(json.dumps(dict(ok=False, error=err), ensure_ascii=False))
             return 1
-        plan, err = build_clean_plan(ids, list(a.exclude_root), a.confirm_danger)
+        plan, err = build_clean_plan(ids, list(a.exclude_root), a.confirm_danger, "permanent" if a.permanent else "recycle")
         if plan is None:
             print(json.dumps(dict(ok=False, error=err), ensure_ascii=False))
             return 1
@@ -1138,8 +1217,10 @@ def run_cli(args):
                       % TOOLS.get(tool, {}).get("name", tool), file=sys.stderr)
         if not a.yes and not a.dry:
             out = dict(ok=False, need_confirmation=True,
-                       message="这是清理计划。确认无误后加 --yes 执行；只想看将删除的文件明细可加 --dry",
-                       plan=[dict(id=cid, name=CAT_BY_ID[cid]["name"], size=it["size"])
+                       delete_mode="permanent" if a.permanent else "recycle",
+                       message=("永久删除，不进入回收站；下载缓存删除后可能需要联网重新下载，源失效时可能无法恢复。" if a.permanent else "")
+                               + "这是清理计划。确认无误后加 --yes 执行；只想看将删除的文件明细可加 --dry",
+                       plan=[dict(id=cid, name=CAT_BY_ID[cid]["name"], **plan_summary(cid, it))
                              for cid, it in plan.items()],
                        total_size=sum(it["size"] for it in plan.values()),
                        skipped_locked=skipped)
@@ -1224,12 +1305,13 @@ def support_links():
         for x in items:
             if not isinstance(x, dict) or not isinstance(x.get("label"), str):
                 continue
+            label_en = x["labelEn"] if isinstance(x.get("labelEn"), str) and x.get("labelEn") else x["label"]
             if isinstance(x.get("image"), str) and x["image"] in SUPPORT_IMAGES:
-                result.append(dict(label=x["label"], image=x["image"]))
+                result.append(dict(label=x["label"], labelEn=label_en, image=x["image"]))
             elif isinstance(x.get("url"), str):
                 url = urlsplit(x["url"])
                 if url.scheme == "https" and url.hostname and not url.username:
-                    result.append(dict(label=x["label"], url=x["url"]))
+                    result.append(dict(label=x["label"], labelEn=label_en, url=x["url"]))
         return result[:5]
     except (OSError, ValueError, TypeError, AttributeError):
         return []
@@ -1241,6 +1323,7 @@ def api_state():
     tools = []
     for tid, t in TOOLS.items():
         tools.append(dict(id=tid, name=t.get("name", tid),
+                          nameEn=t.get("nameEn", t.get("name", tid)),
                           category=t.get("category", "system"),
                           running=tool_running(tid),
                           last_used_days=last_used_days(tid)))
@@ -1250,6 +1333,7 @@ def api_state():
         buckets.append(dict(
             id=c["id"], tool=c.get("tool", ""), category=c.get("category", "system"),
             risk=c.get("risk", "safe"), locked=bool(c.get("locked")), scanned=i.get("status") == "done",
+            direct_delete=bool(direct_roots(c["id"])),
             moveable=bool(c.get("moveable")), move_root=c.get("move_root", ""),
             default_off=bool(c.get("default_off")),
             name=c.get("name", c["id"]), nameEn=c.get("nameEn", c["id"]),
@@ -1333,7 +1417,7 @@ class Handler(BaseHTTPRequestHandler):
         if self.path.split("?")[0].startswith("/api/"):
             token = self.headers.get("X-DeepClean-Token", "")
             if not secrets.compare_digest(token.encode("utf-8"), API_TOKEN.encode("ascii")):
-                self._json(dict(error="会话失效，请通过启动程序重新打开页面"), 401)
+                self._json(dict(error="Session expired. Please reopen the page from the launcher.", error_zh="会话失效，请通过启动程序重新打开页面", error_code="session_expired"), 401)
                 return False
         return True
 
@@ -1415,7 +1499,7 @@ class Handler(BaseHTTPRequestHandler):
             if not isinstance(body, dict):
                 self._json(dict(error="JSON object required"), 400)
                 return
-            for key in ("dry", "confirm_danger"):
+            for key in ("dry", "confirm_danger", "confirm_permanent"):
                 if key in body and not isinstance(body[key], bool):
                     self._json(dict(error="boolean required: " + key), 400)
                     return
@@ -1445,12 +1529,15 @@ class Handler(BaseHTTPRequestHandler):
                     if plan is None:
                         self._json(dict(ok=False, error="请先预览并确认清理计划"))
                         return
+                    if any(it.get("delete_mode") == "permanent" for it in plan.values()) and body.get("confirm_permanent") is not True:
+                        self._json(dict(ok=False, error="永久删除需要明确确认，请重新预览"))
+                        return
                     ok, err = CLEAN.start(plan, False)
                     self._json(dict(ok=ok, error=err))
                     return
                 ids = [str(x) for x in (body.get("ids") or [])][:64]
                 excluded = [str(x) for x in (body.get("excluded_roots") or [])][:512]
-                plan, err = build_clean_plan(ids, excluded, bool(body.get("confirm_danger")))
+                plan, err = build_clean_plan(ids, excluded, bool(body.get("confirm_danger")), body.get("delete_mode", "recycle"))
                 if plan is None:
                     self._json(dict(ok=False, error=err))
                     return
@@ -1461,8 +1548,8 @@ class Handler(BaseHTTPRequestHandler):
                     with PLAN_LOCK:
                         HTTP_PLANS.clear()  # One outstanding approval; another preview supersedes it.
                         HTTP_PLANS[token] = plan
-                    self._json(dict(ok=True, plan_token=token,
-                                    per={cid: dict(size=it["size"], count=len(it["entries"])) for cid, it in plan.items()}))
+                    self._json(dict(ok=True, plan_token=token, delete_mode=body.get("delete_mode", "recycle"),
+                                    per={cid: plan_summary(cid, it) for cid, it in plan.items()}))
                     return
                 ok, err = CLEAN.start(plan, bool(body.get("dry")))
                 self._json(dict(ok=ok, error=err))
@@ -1589,6 +1676,17 @@ def _open_browser(url):
         webbrowser.open(url)
 
 
+class LocalHTTPServer(ThreadingHTTPServer):
+    # Windows SO_REUSEADDR can share an occupied TCP port with another process.
+    allow_reuse_address = False
+    allow_reuse_port = False
+
+    def server_bind(self):
+        if IS_WIN:
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        super().server_bind()
+
+
 def main():
     root = os.path.dirname(sys.executable) if getattr(sys, "frozen", False) else APP_DIR
     lease = Instance(root, is_admin())
@@ -1618,7 +1716,7 @@ def main():
         httpd = None
         for port in range(8520, 8541):
             try:
-                httpd = ThreadingHTTPServer(("127.0.0.1", port), Handler)
+                httpd = LocalHTTPServer(("127.0.0.1", port), Handler)
                 break
             except OSError:
                 continue
