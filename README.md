@@ -11,6 +11,8 @@
 - **规则开源可审计**：全部路径、安全级、理由写在 [`rules/`](rules/) 目录，欢迎 PR 补充工具
 - **纯本地**：只监听 127.0.0.1，不联网、无遥测；Python 标准库实现，零第三方依赖
 
+**系统要求**：Windows 10 / 11 x64。不支持 Windows 7 / 8（官方 Python 3.11 与当前打包运行库均已停止 Win7 支持）。
+
 ## 安全承诺
 
 1. 默认只读扫描，不自动删除
@@ -80,6 +82,8 @@ npm/pnpm/Yarn · Docker WSL · pip/uv · JetBrains · Playwright · Electron · 
 - **Model statistics and migration preview** — no source deletion or copying in this release. Elevated instances are read-only.
 - **Auditable open rules** — every path, risk level and reason lives in [`rules/`](rules/)
 - **Local only** — listens on 127.0.0.1, no network, no telemetry; pure Python stdlib
+
+**Requirements**: Windows 10 / 11 x64. Windows 7 / 8 are not supported (Python 3.11 and the current packaged runtime no longer support them).
 
 ```bash
 python app.py cli scan
