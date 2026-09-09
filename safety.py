@@ -75,10 +75,16 @@ def delete_verified_file(path, expected):
         if not size or size >= len(buffer):
             return False
         resolved = buffer.value
-        if resolved.startswith("\\\\?\\"):
+        # Strip \\?\ only for drive-letter / UNC forms. Volume GUID paths must keep
+        # the prefix; after a matching fingerprint they still identify the same handle.
+        if resolved.startswith("\\\\?\\UNC\\"):
+            resolved = "\\\\" + resolved[8:]
+        elif len(resolved) >= 6 and resolved.startswith("\\\\?\\") and resolved[5] == ":":
             resolved = resolved[4:]
         if normalized(resolved) != normalized(path):
-            return False
+            # Volume GUID (or other non-DOS) final path: identity already verified above.
+            if not (resolved.startswith("\\\\?\\Volume{") or resolved.startswith("Volume{")):
+                return False
         disposition = kernel.SetFileInformationByHandle
         disposition.argtypes = [wintypes.HANDLE, ctypes.c_int, ctypes.c_void_p, wintypes.DWORD]
         disposition.restype = wintypes.BOOL

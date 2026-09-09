@@ -13,11 +13,37 @@ import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-ROOT = Path(tempfile.mkdtemp(prefix="deepclean_direct_"))
+from safety import fingerprint, delete_verified_file, plain_path
+
+
+def _pick_fixture_base():
+    """Pick sandbox dir: plain_path-clean and outside APP_DIR protected_roots."""
+    candidates = []
+    if os.environ.get("RUNNER_TEMP"):
+        candidates.append(Path(os.environ["RUNNER_TEMP"]) / "deepclean_permanent")
+    la = os.environ.get("LOCALAPPDATA")
+    if la:
+        candidates.append(Path(la) / "DeepCleanCI" / "permanent")
+    candidates.append(Path(tempfile.gettempdir()) / "DeepCleanCI" / "permanent")
+    for base in candidates:
+        try:
+            base.mkdir(parents=True, exist_ok=True)
+            probe = base / ".plain_probe"
+            probe.write_text("x", encoding="utf-8")
+            ok = plain_path(str(probe))
+            probe.unlink(missing_ok=True)
+            if ok:
+                return base
+        except OSError:
+            continue
+    return Path(tempfile.mkdtemp(prefix="deepclean_direct_fallback_"))
+
+
+_FIXTURE_BASE = _pick_fixture_base()
+ROOT = Path(tempfile.mkdtemp(prefix="deepclean_direct_", dir=str(_FIXTURE_BASE)))
 os.environ["CLEAR_C_SANDBOX"] = str(ROOT / "cache")
 os.environ["DEEPCLEAN_HISTORY"] = str(ROOT / "history" / "events.jsonl")
 import app
-from safety import fingerprint, delete_verified_file
 
 
 class PermanentTests(unittest.TestCase):
