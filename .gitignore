@@ -17,3 +17,6 @@ dist/
 # 内部工作文档（开发完成后再补充提交）
 .zcode/
 docs/根据新的想法反馈意见.md
+
+# Permanent-delete test sandboxes (repo-local; avoid %TEMP% reparse on CI)
+tests/_permanent_fixtures/
