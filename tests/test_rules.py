@@ -78,7 +78,7 @@ def main():
 
     # ---- 红线：会话/文件历史/回滚数据路径不得出现在 safe / rebuildable 分项 ----
     REDLINE_MARKERS = ("rollout", "file-history", "user\\history", "\\sessions",
-                       "\\projects", "windows.old", "globalstorage")
+                       "\\projects", "windows.old", "globalstorage", ".zcode\\cli\\db")
     bad = []
     for _, b in buckets:
         if b.get("risk") in ("safe", "rebuildable"):

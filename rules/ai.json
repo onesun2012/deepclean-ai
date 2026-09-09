@@ -7,7 +7,8 @@
       "category": "assistant",
       "processes": [
         "Cursor.exe"
-      ]
+      ],
+      "nameEn": "Cursor"
     },
     {
       "id": "claude",
@@ -15,7 +16,8 @@
       "category": "assistant",
       "processes": [
         "claude.exe"
-      ]
+      ],
+      "nameEn": "Claude Code"
     },
     {
       "id": "zcode",
@@ -23,7 +25,8 @@
       "category": "assistant",
       "processes": [
         "ZCode.exe"
-      ]
+      ],
+      "nameEn": "ZCode"
     },
     {
       "id": "codex",
@@ -31,13 +34,15 @@
       "category": "assistant",
       "processes": [
         "codex.exe"
-      ]
+      ],
+      "nameEn": "Codex"
     },
     {
       "id": "copilot",
       "name": "GitHub Copilot",
       "category": "assistant",
-      "processes": []
+      "processes": [],
+      "nameEn": "GitHub Copilot"
     },
     {
       "id": "windsurf",
@@ -45,19 +50,22 @@
       "category": "assistant",
       "processes": [
         "Windsurf.exe"
-      ]
+      ],
+      "nameEn": "Windsurf"
     },
     {
       "id": "gemini",
       "name": "Gemini CLI",
       "category": "assistant",
-      "processes": []
+      "processes": [],
+      "nameEn": "Gemini CLI"
     },
     {
       "id": "openclaw",
       "name": "OpenClaw",
       "category": "assistant",
-      "processes": []
+      "processes": [],
+      "nameEn": "OpenClaw"
     },
     {
       "id": "trae",
@@ -65,7 +73,8 @@
       "category": "assistant",
       "processes": [
         "Trae.exe"
-      ]
+      ],
+      "nameEn": "Trae"
     },
     {
       "id": "qoder",
@@ -73,13 +82,15 @@
       "category": "assistant",
       "processes": [
         "Qoder.exe"
-      ]
+      ],
+      "nameEn": "Qoder"
     },
     {
       "id": "codebuddy",
       "name": "CodeBuddy",
       "category": "assistant",
-      "processes": []
+      "processes": [],
+      "nameEn": "CodeBuddy"
     },
     {
       "id": "kimi",
@@ -87,7 +98,8 @@
       "category": "cn-app",
       "processes": [
         "Kimi.exe"
-      ]
+      ],
+      "nameEn": "Kimi Desktop"
     },
     {
       "id": "doubao",
@@ -95,7 +107,8 @@
       "category": "cn-app",
       "processes": [
         "Doubao.exe"
-      ]
+      ],
+      "nameEn": "Doubao"
     },
     {
       "id": "coze",
@@ -103,7 +116,8 @@
       "category": "cn-app",
       "processes": [
         "Coze.exe"
-      ]
+      ],
+      "nameEn": "Coze"
     },
     {
       "id": "ima",
@@ -111,7 +125,8 @@
       "category": "cn-app",
       "processes": [
         "ima.exe"
-      ]
+      ],
+      "nameEn": "Tencent ima"
     },
     {
       "id": "quark",
@@ -119,7 +134,8 @@
       "category": "cn-app",
       "processes": [
         "Quark.exe"
-      ]
+      ],
+      "nameEn": "Quark"
     },
     {
       "id": "tabbit",
@@ -127,13 +143,15 @@
       "category": "cn-app",
       "processes": [
         "Tabbit.exe"
-      ]
+      ],
+      "nameEn": "Tabbit"
     },
     {
       "id": "updaters",
       "name": "应用更新器",
       "category": "cn-app",
-      "processes": []
+      "processes": [],
+      "nameEn": "App updaters"
     }
   ],
   "buckets": [
@@ -158,15 +176,17 @@
     {
       "id": "cursor-index",
       "tool": "cursor",
-      "risk": "rebuildable",
+      "risk": "danger",
       "min_age_min": 60,
       "labelZh": "代码索引",
       "labelEn": "Code index",
-      "hintZh": "工作区语义索引与存储。可删，下次打开项目会重新扫描。",
-      "hintEn": "Workspace semantic index and storage. Rebuilt when you reopen a project.",
+      "hintZh": "目录可能包含持久状态或运行组件，暂不清理，待上游版本验证后再开放。",
+      "hintEn": "May contain persistent state or runtime components. Cleaning disabled pending version-specific verification.",
       "paths": [
         "%APPDATA%\\Cursor\\User\\workspaceStorage"
-      ]
+      ],
+      "locked": true,
+      "default_off": true
     },
     {
       "id": "cursor-file-history",
@@ -247,10 +267,11 @@
       "locked": true,
       "labelZh": "会话记录",
       "labelEn": "Session transcripts",
-      "hintZh": "会话转录记录，删除后无法从本机恢复。永不清理。",
-      "hintEn": "Session transcripts. Never cleaned by this tool.",
+      "hintZh": "会话转录（rollout）与会话数据库 db.sqlite，删除后无法从本机恢复。永不清理。",
+      "hintEn": "Session transcripts (rollout) and the session database db.sqlite. Never cleaned by this tool.",
       "paths": [
-        "%USERPROFILE%\\.zcode\\cli\\rollout"
+        "%USERPROFILE%\\.zcode\\cli\\rollout",
+        "%USERPROFILE%\\.zcode\\cli\\db"
       ]
     },
     {
@@ -271,16 +292,18 @@
     {
       "id": "codex-runtime",
       "tool": "codex",
-      "risk": "rebuildable",
+      "risk": "danger",
       "min_age_min": 1440,
       "labelZh": "运行时缓存",
       "labelEn": "Runtime cache",
-      "hintZh": "下载的沙箱运行时，删除后下次启动会自动重新下载。",
-      "hintEn": "Downloaded sandbox runtimes. Re-downloaded on next launch.",
+      "hintZh": "目录可能包含持久状态或运行组件，暂不清理，待上游版本验证后再开放。",
+      "hintEn": "May contain persistent state or runtime components. Cleaning disabled pending version-specific verification.",
       "paths": [
         "%USERPROFILE%\\.cache\\codex-runtimes",
         "%LOCALAPPDATA%\\OpenAI\\Codex"
-      ]
+      ],
+      "locked": true,
+      "default_off": true
     },
     {
       "id": "codex-sessions",
@@ -329,16 +352,18 @@
     {
       "id": "gemini-cache",
       "tool": "gemini",
-      "risk": "safe",
+      "risk": "danger",
       "min_age_min": 60,
       "labelZh": "CLI 缓存",
       "labelEn": "CLI cache",
-      "hintZh": "临时文件与日志，可安全删除。",
-      "hintEn": "Temp files and logs. Safe to delete.",
+      "hintZh": "目录可能包含持久状态或运行组件，暂不清理，待上游版本验证后再开放。",
+      "hintEn": "May contain persistent state or runtime components. Cleaning disabled pending version-specific verification.",
       "paths": [
         "%USERPROFILE%\\.gemini\\tmp",
         "%USERPROFILE%\\.gemini\\cache"
-      ]
+      ],
+      "locked": true,
+      "default_off": true
     },
     {
       "id": "openclaw-cache",
@@ -504,15 +529,17 @@
     {
       "id": "updaters",
       "tool": "updaters",
-      "risk": "safe",
+      "risk": "danger",
       "min_age_min": 720,
       "labelZh": "应用更新包缓存",
       "labelEn": "Updater packages",
-      "hintZh": "各桌面应用更新器下载的安装包残留，安装完成即无用。",
-      "hintEn": "Installer leftovers from desktop app updaters. Useless once installed.",
+      "hintZh": "目录可能包含持久状态或运行组件，暂不清理，待上游版本验证后再开放。",
+      "hintEn": "May contain persistent state or runtime components. Cleaning disabled pending version-specific verification.",
       "paths": [
         "%LOCALAPPDATA%\\*-updater"
-      ]
+      ],
+      "locked": true,
+      "default_off": true
     }
   ]
 }

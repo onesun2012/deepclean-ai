@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -43,6 +43,7 @@ h1,h2,h3{text-wrap:balance}
 .logo-txt .b2{font-size:12px;color:var(--muted)}
 .diskcard{margin:16px 12px 4px;width:calc(100% - 24px);border:none;background:var(--surface);border-radius:14px;box-shadow:var(--hairline);padding:12px 14px;text-align:left;transition:box-shadow .15s}
 .diskcard:hover{box-shadow:var(--hairline-hover)}
+.diskcard{color:var(--fg)}
 .diskcard .row1{display:flex;justify-content:space-between;align-items:baseline;font-size:12px;color:var(--muted)}
 .diskcard .row1 .crit{font-weight:500}
 .diskcard .row1 .crit.danger{color:var(--danger)}
@@ -218,8 +219,12 @@ h1,h2,h3{text-wrap:balance}
 .success-big{font-size:30px;font-weight:500;letter-spacing:-.02em;color:var(--accent);font-variant-numeric:tabular-nums;margin-top:12px}
 .donate-box{margin-top:20px;background:var(--surface2);border-radius:16px;padding:16px}
 .donate-box p{font-size:12.5px;line-height:1.7}
-.pay-grid{margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.pay-grid{margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px;justify-items:stretch}.pay-grid>.pay-slot:last-child:nth-child(odd),.pay-grid>details.pay-qr:last-child:nth-child(odd){grid-column:1/-1;justify-self:start;width:calc(50% - 4px)}
 .pay-slot{height:52px;display:grid;place-items:center;background:var(--surface);border-radius:12px;box-shadow:var(--hairline);font-size:12px;color:var(--muted)}
+.pay-qr{background:var(--surface);border-radius:12px;box-shadow:var(--hairline);align-self:start;font-size:12px;color:var(--muted)}
+.pay-qr summary{padding:18px 12px;cursor:pointer;text-align:center}
+.pay-qr img{display:block;width:200px;max-width:100%;height:auto;margin:auto;background:white}
+.pay-qr a{display:block;padding:8px 12px 16px}
 .donate-off{margin-top:10px;display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--subtle);cursor:pointer}
 .donate-off input{accent-color:var(--accent)}
 .set-row{margin-top:18px}
@@ -259,8 +264,12 @@ body.light .seg button.on{background:#fff}
   <button class="diskcard" id="diskCard" title=""></button>
   <nav class="nav" id="nav"></nav>
   <div class="nav-foot">
-    <button class="nav-item" id="btnThemeFoot"><span class="ind"></span><span id="themeIc"></span><span class="spacer"></span><span data-i18n="theme">深 / 浅色</span></button>
+    <button class="nav-item" id="btnThemeFoot"><span class="ind"></span><span id="themeIc"></span><span data-i18n="theme">深 / 浅色</span></button>
     <button class="nav-item" id="btnSettings"><span class="ind"></span><span id="setIc"></span><span data-i18n="settings">设置</span></button>
+  </div>
+
+  <div class="side-foot">
+    <a class="nav-item" id="sideFeedback" href="https://onesun2012.github.io/deepclean-ai/#feedback" target="_blank" rel="noopener noreferrer"><span class="ind"></span><span id="feedbackIc"></span><span data-i18n="feedback">Feedback</span></a>
   </div>
 </aside>
 
@@ -277,6 +286,7 @@ body.light .seg button.on{background:#fff}
     <div class="cur mono" id="scanCur"></div>
     <div class="hint" data-i18n="scanningHint">只读取文件大小与日期，不会写入或删除。</div>
     <div class="prog"><i id="scanProg" style="width:0%"></i></div>
+    <button class="btn outline" id="btnStopJob" data-i18n="stopJob">Stop scan / clean</button>
   </div>
 </div>
 
@@ -302,6 +312,7 @@ body.light .seg button.on{background:#fff}
     <h2 data-i18n="successTitle">清理完成</h2>
     <div class="success-big" id="successFreed">0</div>
     <p class="sub" id="successLine"></p>
+    <div class="list" id="successReport"></div>
     <div class="donate-box" id="donateBox">
       <p data-i18n="donateLine">如果这让你今晚能继续跑模型，可以请作者喝杯咖啡。</p>
       <div class="pay-grid">
@@ -312,7 +323,10 @@ body.light .seg button.on{background:#fff}
       </div>
       <label class="donate-off"><input type="checkbox" id="donateOff"> <span data-i18n="donateNever">清理完成后不再显示打赏</span></label>
     </div>
-    <div class="modal-btns"><button class="btn outline" id="btnSuccessDone" data-i18n="close">关闭</button></div>
+    <div class="modal-btns">
+      <button class="btn outline" id="btnOpenRecycle" style="display:none" data-i18n="openRecycleBin">打开回收站</button>
+      <button class="btn outline" id="btnSuccessDone" data-i18n="close">关闭</button>
+    </div>
   </div>
 </div>
 
@@ -373,7 +387,15 @@ body.light .seg button.on{background:#fff}
       </div>
       <p class="sub" style="margin-top:10px" data-i18n="rulesNote">清理规则全部来自开源 rules/ 目录，路径、安全级与理由逐条可审计。欢迎贡献新工具规则。</p>
     </div>
-    <div class="modal-btns"><button class="btn outline" id="btnSettingsOk" data-i18n="close">关闭</button></div>
+    <div class="set-row">
+      <div class="set-label" data-i18n="recentCleanups">最近清理</div>
+      <div class="list" id="recentList" style="max-height:180px;margin-top:2px"></div>
+    </div>
+    <div class="set-row">
+      <div class="set-label" data-i18n="feedback">Send feedback</div>
+      <a class="btn outline sm" id="btnFeedback" href="https://onesun2012.github.io/deepclean-ai/#feedback" target="_blank" rel="noopener noreferrer" data-i18n="feedback">Send feedback</a>
+    </div>
+    <div class="modal-btns"><button class="btn outline" id="btnQuit" data-i18n="quitApp">Exit app</button><button class="btn outline" id="btnSettingsOk" data-i18n="close">关闭</button></div>
   </div>
 </div>
 
@@ -381,12 +403,13 @@ body.light .seg button.on{background:#fff}
 
 <script>
 /* ======================= i18n ======================= */
+const FEEDBACK_URL = "https://onesun2012.github.io/deepclean-ai/#feedback";
 const I18N = {
-zh: {brand:"深清",tagline:"C 盘被 AI 工具吃满了？",disk:"C 盘",freeOf:"可用",ofTotal:"共",critical:"危急",home:"首页",ai:"AI 专清",models:"本地模型",dev:"开发缓存",chat:"聊天应用",system:"系统垃圾",settings:"设置",theme:"深 / 浅色",dark:"深色",light:"浅色",used:"已使用",total:"总容量",available:"可用空间",almostFull:"C 盘即将满载",almostFullBody:"空间大户是 AI 工具与模型，不是微信。",healthyTitle:"C 盘空间健康",healthyBody:"当前空间充裕。AI 工具与模型是增长最快的大户，定期扫描可以防患于未然。",where:"空间去哪了",segAi:"AI 工具与模型",segSystem:"系统谨慎项",segChat:"聊天应用",segOther:"其他文件",segHint:"扫描后按清理规则归类估算",ctaScan:"扫描 AI 与开发缓存",ctaSystem:"仅查看系统垃圾",modeSafe:"安全一键",modeSafeDesc:"只删可重建缓存，不动模型与对话。",modeWork:"AI 工作站",modeWorkDesc:"清缓存，并把闲置模型列为可迁移。",modeExpert:"专家",modeExpertDesc:"显示全部分项（含锁定项）。WinSxS 等系统危险项已锁定，请用系统自带工具处理。",recommended:"推荐",scanDone:"扫描完成",safeClean:"可安全清理",alsoNeed:"另有",needReview:"需确认或迁移",rescan:"重新扫描",stop:"停止",all:"全部",assistants:"编程助手",localModels:"本地模型",cnApps:"国内应用",lastUsed:"上次使用",daysAgo:"天前",today:"今天",running:"运行中",unknown:"未知",selected:"已选",items:"项",cleanSelected:"清理已选",migrateToD:"迁移到 D 盘",emptyScan:"还没有扫描结果",emptyScanBody:"先扫描 AI 与开发缓存。默认只读，不会删除任何文件。",scanning:"正在扫描 AI 工作站",scanningHint:"只读取文件大小与日期，不会写入或删除。",confirmTitle:"确认清理",confirmBody:"将删除已选的可重建缓存。模型、对话与危险项不会被动；被占用或保留期内的文件会自动跳过。",expectFree:"预计释放：",confirmAction:"确认清理",cancel:"取消",close:"关闭",successTitle:"清理完成",successLine:"C 盘可用空间已刷新。",donateLine:"如果这让你今晚能继续跑模型，可以请作者喝杯咖啡。",wechat:"微信赞赏",alipay:"支付宝",afdian:"爱发电",donateNever:"清理完成后不再显示打赏",ok:"确定",rootsSub:"勾选的目录参与清理，取消勾选的目录本次将被跳过。",noRoots:"扫描后可查看目录明细",moveSub:"把模型目录剪切到目标盘，并在原位置建立目录联接。应用无需任何配置即可继续使用；任何一步失败都会回滚，原文件不受影响。",moveStart:"开始迁移",moveRunning:"迁移中…",moveTarget:"迁移到：",language:"语言",donate:"支持作者",rulesNote:"清理规则全部来自开源 rules/ 目录，路径、安全级与理由逐条可审计。欢迎贡献新工具规则。",safetySafe:"安全",safetyRebuildable:"可重建",safetyMigrate:"迁移",safetyDanger:"危险",lockedTip:"已锁定 · 永不清理",migrateTip:"建议迁移而非删除",movePick:"选择目标盘：",moveDone:"迁移完成",moveErr:"迁移失败",adminTitle:"当前为标准权限",adminBody:"用户目录已统计完毕。系统目录需要管理员权限才能完整扫描。",adminAction:"以管理员重启",needAdmin:"需管理员",expand:"查看分项",collapse:"收起",viewAdmin:"需管理员统计"},
-en: {brand:"DeepClean",tagline:"Did AI tools eat your C: drive?",disk:"C:",freeOf:"free",ofTotal:"of",critical:"Critical",home:"Home",ai:"AI cleanup",models:"Local models",dev:"Dev caches",chat:"Chat apps",system:"System junk",settings:"Settings",theme:"Theme",dark:"Dark",light:"Light",used:"Used",total:"Capacity",available:"Free",almostFull:"C: is almost full",almostFullBody:"AI tools and models — not WeChat — are the space hogs.",healthyTitle:"C: drive is healthy",healthyBody:"Plenty of space left. AI tools and models grow fastest — scan regularly to stay ahead.",where:"Where the space went",segAi:"AI tools & models",segSystem:"System (review)",segChat:"Chat apps",segOther:"Everything else",segHint:"Estimated from rules after scan",ctaScan:"Scan AI & dev caches",ctaSystem:"System junk only",modeSafe:"Safe clean",modeSafeDesc:"Delete rebuildable caches only. Models and chats stay.",modeWork:"AI workstation",modeWorkDesc:"Clear caches and list idle models to move.",modeExpert:"Expert",modeExpertDesc:"Show every bucket, locked ones included. System danger items stay locked — use Windows tools for those.",recommended:"Recommended",scanDone:"Scan complete",safeClean:"Safe to clean",alsoNeed:"Plus",needReview:"needs review or migrate",rescan:"Scan again",stop:"Stop",all:"All",assistants:"Assistants",localModels:"Local models",cnApps:"CN apps",lastUsed:"Last used",daysAgo:"d ago",today:"Today",running:"Running",unknown:"Unknown",selected:"Selected",items:"items",cleanSelected:"Clean selected",migrateToD:"Move to D:",emptyScan:"No scan yet",emptyScanBody:"Scan AI and dev caches first. Read-only by default — nothing is deleted.",scanning:"Scanning the AI workstation",scanningHint:"Read-only: sizes and dates. No writes, no deletes.",confirmTitle:"Confirm cleanup",confirmBody:"Deletes selected rebuildable caches only. Models, chats and danger items stay. Busy or recently-created files are skipped automatically.",expectFree:"Estimated: ",confirmAction:"Clean now",cancel:"Cancel",close:"Close",successTitle:"Cleanup finished",successLine:"Free space on C: has been refreshed.",donateLine:"If this lets you keep running models tonight, buy the author a coffee.",wechat:"WeChat",alipay:"Alipay",afdian:"Afdian",donateNever:"Don't show the tip jar after cleanup",ok:"OK",rootsSub:"Checked folders are cleaned; unchecked ones are skipped this time.",noRoots:"Scan first to see folder details",moveSub:"Moves the model folder to the target drive and leaves a junction at the original path. Apps keep working with zero config; any failure rolls back.",moveStart:"Start move",moveRunning:"Moving…",moveTarget:"Move to:",language:"Language",donate:"Tip the author",rulesNote:"All cleanup rules live in the open-source rules/ folder — every path, risk level and reason is auditable. PRs welcome.",safetySafe:"Safe",safetyRebuildable:"Rebuild",safetyMigrate:"Move",safetyDanger:"Danger",lockedTip:"Locked · never cleaned",migrateTip:"Move instead of deleting",movePick:"Target drive:",moveDone:"Move finished",moveErr:"Move failed",adminTitle:"Running without admin",adminBody:"User folders are complete. System folders need elevation for a full scan.",adminAction:"Restart as admin",needAdmin:"Admin",expand:"Details",collapse:"Hide",viewAdmin:"Admin required"}
+zh: {brand:"深清",tagline:"C 盘被 AI 工具吃满了？",disk:"C 盘",freeOf:"可用",ofTotal:"共",critical:"危急",home:"首页",ai:"AI 专清",models:"本地模型",dev:"开发缓存",chat:"聊天应用",system:"系统垃圾",settings:"设置",theme:"深 / 浅色",dark:"深色",light:"浅色",used:"已使用",total:"总容量",available:"可用空间",almostFull:"C 盘即将满载",almostFullBody:"空间大户是 AI 工具与模型，不是微信。",healthyTitle:"C 盘空间健康",healthyBody:"当前空间充裕。AI 工具与模型是增长最快的大户，定期扫描可以防患于未然。",where:"空间去哪了",segAi:"AI 工具与模型",segSystem:"系统谨慎项",segChat:"聊天应用",segOther:"其他文件",segHint:"扫描后按清理规则归类估算",ctaScan:"扫描 AI 与开发缓存",ctaSystem:"仅查看系统垃圾",modeSafe:"安全一键",modeSafeDesc:"只删可重建缓存，不动模型与对话。",modeWork:"AI 工作站",modeWorkDesc:"清缓存，并把闲置模型列为可迁移。",modeExpert:"专家",modeExpertDesc:"显示全部分项（含锁定项）。WinSxS 等系统危险项已锁定，请用系统自带工具处理。",recommended:"推荐",scanDone:"扫描完成",safeClean:"可安全清理",alsoNeed:"另有",needReview:"需确认或迁移",rescan:"重新扫描",stop:"停止",stopJob:"停止扫描 / 清理",quitApp:"退出工具",quitDone:"DeepClean 已退出，可以关闭此页面。",sessionExpired:"会话失效，请通过启动程序重新打开页面",feedback:"反馈",feedbackHint:"打开 GitHub 产品页反馈",stopRequested:"已请求停止，当前文件操作完成后结束",all:"全部",assistants:"编程助手",localModels:"本地模型",cnApps:"国内应用",lastUsed:"上次使用",daysAgo:"天前",today:"今天",running:"运行中",unknown:"未知",selected:"已选",items:"项",cleanSelected:"清理已选",migrateToD:"迁移预览",emptyScan:"还没有扫描结果",emptyScanBody:"先扫描 AI 与开发缓存。默认只读，不会删除任何文件。",scanning:"正在扫描 AI 工作站",scanningHint:"只读取文件大小与日期，不会写入或删除。",confirmTitle:"确认清理",confirmBody:"将请求 Windows 回收已选文件；Shell 回收能力取决于介质和系统设置。变更、被占用或保留期内的文件跳过。模型、对话与锁定项不参与。",expectFree:"预计处理（实际执行会再次核验）：",confirmAction:"确认清理",cancel:"取消",close:"关闭",successTitle:"处理结果（逻辑大小）",successLine:"C 盘可用空间已刷新。",donateLine:"如果这让你今晚能继续跑模型，可以请作者喝杯咖啡。",wechat:"微信赞赏",alipay:"支付宝",afdian:"爱发电",donateNever:"清理完成后不再显示打赏",ok:"确定",rootsSub:"勾选的目录参与清理，取消勾选的目录本次将被跳过。",noRoots:"扫描后可查看目录明细",moveSub:"当前仅预览第一个明确模型目录，不复制、不删源。可靠事务迁移完成验收后再开放。",moveStart:"查看预览",moveRunning:"生成预览…",moveTarget:"迁移到：",language:"语言",donate:"支持作者",rulesNote:"清理规则全部来自开源 rules/ 目录，路径、安全级与理由逐条可审计。欢迎贡献新工具规则。",safetySafe:"安全",safetyRebuildable:"可重建",safetyMigrate:"迁移",safetyDanger:"危险",lockedTip:"已锁定 · 永不清理",migrateTip:"建议迁移而非删除",movePick:"选择目标盘：",moveDone:"迁移完成",moveErr:"迁移失败",adminTitle:"当前为标准权限",adminBody:"普通权限支持用户目录清理；管理员启动仅用于只读扫描，不执行清理。",adminAction:"以管理员重启",needAdmin:"需管理员",expand:"查看分项",collapse:"收起",viewAdmin:"需管理员统计",recycleAlone:"清空回收站请单独执行，不能与其它清理项一起勾选",confirmRecycleOnly:"将永久清空 C 盘回收站，包括此前由本工具送入的文件。不可撤销。",runningWarn:"正在运行。清理其缓存可能导致卡顿或写入失败，建议先退出再清。",stillClean:"仍要清理",recycledWord:"已送入回收站",permanentWord:"永久删除",skippedFiles:"跳过 {n} 个文件（被占用/保留期/无法送入回收站）",untouched:"未动",openRecycleBin:"打开回收站",recentCleanups:"最近清理"},
+en: {brand:"DeepClean",tagline:"Did AI tools eat your C: drive?",disk:"C:",freeOf:"free",ofTotal:"of",critical:"Critical",home:"Home",ai:"AI cleanup",models:"Local models",dev:"Dev caches",chat:"Chat apps",system:"System junk",settings:"Settings",theme:"Theme",dark:"Dark",light:"Light",used:"Used",total:"Capacity",available:"Free",almostFull:"C: is almost full",almostFullBody:"AI tools and models — not WeChat — are the space hogs.",healthyTitle:"C: drive is healthy",healthyBody:"Plenty of space left. AI tools and models grow fastest — scan regularly to stay ahead.",where:"Where the space went",segAi:"AI tools & models",segSystem:"System (review)",segChat:"Chat apps",segOther:"Everything else",segHint:"Estimated from rules after scan",ctaScan:"Scan AI & dev caches",ctaSystem:"System junk only",modeSafe:"Safe clean",modeSafeDesc:"Delete rebuildable caches only. Models and chats stay.",modeWork:"AI workstation",modeWorkDesc:"Clear caches and list idle models to move.",modeExpert:"Expert",modeExpertDesc:"Show every bucket, locked ones included. System danger items stay locked — use Windows tools for those.",recommended:"Recommended",scanDone:"Scan complete",safeClean:"Safe to clean",alsoNeed:"Plus",needReview:"needs review or migrate",rescan:"Scan again",stop:"Stop",stopJob:"Stop scan / clean",quitApp:"Exit app",quitDone:"DeepClean has exited. You can close this page.",sessionExpired:"Session expired. Please reopen the page from the launcher.",feedback:"Feedback",feedbackHint:"Open GitHub product page feedback",stopRequested:"Stop requested; ends after the current file operation finishes",all:"All",assistants:"Assistants",localModels:"Local models",cnApps:"CN apps",lastUsed:"Last used",daysAgo:"d ago",today:"Today",running:"Running",unknown:"Unknown",selected:"Selected",items:"items",cleanSelected:"Clean selected",migrateToD:"Migration preview",emptyScan:"No scan yet",emptyScanBody:"Scan AI and dev caches first. Read-only by default — nothing is deleted.",scanning:"Scanning the AI workstation",scanningHint:"Read-only: sizes and dates. No writes, no deletes.",confirmTitle:"Confirm cleanup",confirmBody:"Selected files go to the Recycle Bin — recoverable in Explorer until it is emptied. Busy or recently-created files are skipped automatically; models, chats and danger items stay.",expectFree:"Estimated: ",confirmAction:"Clean now",cancel:"Cancel",close:"Close",successTitle:"Processed logical size",successLine:"Free space on C: has been refreshed.",donateLine:"If this lets you keep running models tonight, buy the author a coffee.",wechat:"WeChat",alipay:"Alipay",afdian:"Afdian",donateNever:"Don't show the tip jar after cleanup",ok:"OK",rootsSub:"Checked folders are cleaned; unchecked ones are skipped this time.",noRoots:"Scan first to see folder details",moveSub:"Preview only for the first model directory. No files are copied or removed.",moveStart:"Preview move",moveRunning:"Moving…",moveTarget:"Move to:",language:"Language",donate:"Tip the author",rulesNote:"All cleanup rules live in the open-source rules/ folder — every path, risk level and reason is auditable. PRs welcome.",safetySafe:"Safe",safetyRebuildable:"Rebuild",safetyMigrate:"Move",safetyDanger:"Danger",lockedTip:"Locked · never cleaned",migrateTip:"Move instead of deleting",movePick:"Target drive:",moveDone:"Move finished",moveErr:"Move failed",adminTitle:"Running without admin",adminBody:"User folders are complete. System folders need elevation for a full scan.",adminAction:"Restart as admin",needAdmin:"Admin",expand:"Details",collapse:"Hide",viewAdmin:"Admin required",recycleAlone:"Empty the Recycle Bin on its own — it can't be combined with other items.",confirmRecycleOnly:"Permanently empties the C: Recycle Bin, including files DeepClean sent there. Cannot be undone.",runningWarn:"is running. Cleaning its cache may cause lag or write failures — quit it first.",stillClean:"Clean anyway",recycledWord:"sent to Recycle Bin",permanentWord:"permanently deleted",skippedFiles:"Skipped {n} files (busy / age limit / could not recycle)",untouched:"Untouched",openRecycleBin:"Open Recycle Bin",recentCleanups:"Recent cleanups"}
 };
-let locale = "zh";
-try { locale = localStorage.getItem("dc-locale") || (navigator.language && navigator.language.startsWith("zh") ? "zh" : "en"); } catch(e) {}
+let locale = "en";
+try { locale = localStorage.getItem("dc-locale") || "en"; } catch(e) {}
 const T = () => I18N[locale] || I18N.zh;
 const t = k => (T()[k] !== undefined ? T()[k] : (I18N.zh[k] !== undefined ? I18N.zh[k] : k));
 const esc = s => String(s == null ? "" : s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");
@@ -401,7 +424,8 @@ const IC = {
   box: svg('<path d="M12 2.8l8 4.6v9.2l-8 4.6-8-4.6V7.4z"/><path d="M4 7.4l8 4.6 8-4.6M12 12v9.2"/>'),
   chat: svg('<path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v7a2.5 2.5 0 0 1-2.5 2.5H10l-4.5 4v-4A2.5 2.5 0 0 1 4 13.5z"/>'),
   disk: svg('<rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><circle cx="12" cy="12" r="3.2"/><path d="M12 10.5v1.6"/>'),
-  settings: svg('<circle cx="12" cy="12" r="3.4"/><path d="M12 2.8v2.6M12 18.6v2.6M2.8 12h2.6M18.6 12h2.6M5.4 5.4l1.9 1.9M16.7 16.7l1.9 1.9M18.6 5.4l-1.9 1.9M7.3 16.7l-1.9 1.9"/>',1.6),
+  settings: svg('<path d="M10.2 3.2h3.6l.4 2.1a6.8 6.8 0 0 1 1.8 1l2-.9 1.8 3.1-1.6 1.4c.1.4.2.8.2 1.1s-.1.8-.2 1.1l1.6 1.4-1.8 3.1-2-.9a6.8 6.8 0 0 1-1.8 1l-.4 2.1h-3.6l-.4-2.1a6.8 6.8 0 0 1-1.8-1l-2 .9-1.8-3.1 1.6-1.4A5.5 5.5 0 0 1 5.5 12c0-.4.1-.8.2-1.1L4.1 9.5 5.9 6.4l2 .9a6.8 6.8 0 0 1 1.8-1l.5-2.1z"/><circle cx="12" cy="12" r="2.8"/>',1.7),
+  feedback: svg('<path d="M5 5.5A2.5 2.5 0 0 1 7.5 3h9A2.5 2.5 0 0 1 19 5.5v7A2.5 2.5 0 0 1 16.5 15H12l-4 3.5V15H7.5A2.5 2.5 0 0 1 5 12.5z"/><path d="M8.5 8h7M8.5 11h5"/>'),
   sun: svg('<circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6L7 7M17 17l1.4 1.4M18.4 5.6L17 7M7 17l-1.4 1.4"/>'),
   moon: svg('<path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z"/>'),
   check: svg('<path d="M4.5 12.5l5 5 10-11"/>',3.2),
@@ -435,7 +459,7 @@ const TOOL_IC = {cursor:"code",claude:"term",zcode:"term",codex:"term",copilot:"
 
 /* ======================= 状态 ======================= */
 const $ = s => document.querySelector(s);
-const S = { admin:false, drive:{free:0,total:0,used:0}, driveLetter:"C", tools:[], buckets:[], scanned:false };
+const S = { admin:false, win:true, drive:{free:0,total:0,used:0}, driveLetter:"C", tools:[], buckets:[], scanned:false };
 let view = "home";
 let mode = "safe";
 try { mode = localStorage.getItem("dc-mode") || "safe"; } catch(e) {}
@@ -449,7 +473,7 @@ let moveTool = null, moveDrive = localStorage.getItem("dc-move-drive") || "D";
 let lastP = null, pollBusy = false, scanning = false, cleaningOpen = false;
 let pollTimer = null, scanStartTs = 0;
 
-const cleanable = b => !b.locked && b.risk !== "migrate";
+const cleanable = b => !b.locked && b.risk !== "migrate" && b.scanned !== false;
 const MODE_KEY = { safe: "modeSafe", workstation: "modeWork", expert: "modeExpert" };
 const modeName = m => t(MODE_KEY[m]);
 const modeDesc = m => t(MODE_KEY[m] + "Desc");
@@ -457,7 +481,52 @@ const B = id => S.buckets.find(x => x.id === id);
 const bsize = id => (lastP && lastP.per && lastP.per[id] ? lastP.per[id].size : 0) || (B(id) || {}).size || 0;
 const fmt = n => { n = Math.max(0, n||0); if (n < 1024) return n + " B"; if (n < 1048576) return (n/1024).toFixed(n < 10240 ? 1 : 0) + " KB"; if (n < 1073741824) return (n/1048576).toFixed(1) + " MB"; return (n/1073741824).toFixed(2) + " GB"; };
 const toast = m => { const el = $("#toast"); el.textContent = m; el.classList.add("show"); clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove("show"), 2200); };
-async function api(p, opt) { const r = await fetch(p, opt); return r.json(); }
+const fragmentToken = new URLSearchParams(location.hash.slice(1)).get("token");
+if (fragmentToken) { sessionStorage.setItem("dc-token", fragmentToken); history.replaceState(null, "", location.pathname); }
+async function api(p, opt = {}) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000);
+  try {
+    const r = await fetch(p, {...opt, signal: controller.signal,
+      headers: {...(opt.headers || {}), "X-DeepClean-Token": sessionStorage.getItem("dc-token") || ""}});
+    const data = await r.json();
+    if (!r.ok) {
+      if (data.error_code === "session_expired") throw new Error(t("sessionExpired"));
+      if (data.error_zh && locale === "zh") throw new Error(data.error_zh);
+      throw new Error(data.error || String(r.status));
+    }
+    return data;
+  } finally { clearTimeout(timeout); }
+}
+function serialPoll(fn, ms) {
+  let stopped = false, timer;
+  const stop = () => { stopped = true; clearTimeout(timer); };
+  const tick = async () => {
+    try { await fn(); } catch (e) { toast(e.message || "连接失败"); }
+    if (!stopped) timer = setTimeout(tick, ms);
+  };
+  timer = setTimeout(tick, ms);
+  return stop;
+}
+window.addEventListener("unhandledrejection", e => {
+  toast(e.reason?.message || "请求失败，请重试");
+  $("#btnMoveStart").disabled = false;
+});
+let supportLinks = [];
+function renderSupport() {
+  const enLabel = { "微信赞赏": "WeChat", "支付宝": "Alipay", "爱发电 Afdian": "Afdian" };
+  const labelOf = x => locale === "zh" ? x.label : (x.labelEn || enLabel[x.label] || x.label);
+  const html = supportLinks.map(x => x.image
+    ? '<details class="pay-qr"><summary>' + esc(labelOf(x)) + (locale === "zh" ? ' · 扫码支持' : ' · QR code') + '</summary><a target="_blank" rel="noopener noreferrer" href="' + esc(x.image) + '"><img src="' + esc(x.image) + '" alt="' + esc(labelOf(x)) + '" loading="lazy"></a></details>'
+    : '<a class="pay-slot" target="_blank" rel="noopener noreferrer" href="' + esc(x.url) + '">' + (locale === "zh" ? esc(x.label) : esc(x.labelEn || x.label)) + '</a>').join("");
+  document.querySelectorAll(".pay-grid").forEach(el => {
+    el.innerHTML = html; el.parentElement.style.display = html ? "" : "none";
+    let note = el.parentElement.querySelector(".support-note");
+    if (!note) { note = document.createElement("p"); note.className = "support-note sub"; el.before(note); }
+    note.textContent = locale === "zh" ? "免费使用 · 自愿支持作者，不影响功能使用。" : "Free to use. Supporting the author is optional and does not affect access to features.";
+  });
+  $("#donateBox").style.display = html && localStorage.getItem("dc-donate-off") !== "1" ? "" : "none";
+}
 function store() { try { localStorage.setItem("dc-selected", JSON.stringify(selected)); localStorage.setItem("dc-mode", mode); } catch(e) {} }
 
 /* ======================= 安全级 / 勾选逻辑 ======================= */
@@ -613,7 +682,7 @@ function renderResults() {
   const tsize = tid => toolBuckets(tid).reduce((s, b) => s + bsize(b.id), 0);
   tools = tools.slice().sort((a, b) => tsize(b.id) - tsize(a.id));
 
-  const viewCleanable = S.buckets.filter(b => cats.includes(b.category) && cleanable(b));
+  const viewCleanable = tools.flatMap(tool => toolCheckable(tool));
   const selBuckets = viewCleanable.filter(b => selected[b.id]);
   const selMb = selBuckets.reduce((s, b) => s + bsize(b.id), 0);
   const safeMb = viewCleanable.filter(b => b.risk === "safe").reduce((s, b) => s + bsize(b.id), 0);
@@ -651,18 +720,20 @@ function renderResults() {
       (migrateMb > 0 ? '<span class="mig">' + fmt(migrateMb) + " " + esc(t("migrateToD")) + "</span>" : "") + "</div>" +
       '<div class="btns">' +
         '<button class="btn outline" id="btnMove" ' + (migrateMb === 0 ? "disabled" : "") + ">" + esc(t("migrateToD")) + "</button>" +
-        '<button class="btn primary" id="btnClean" ' + (selMb === 0 ? "disabled" : "") + ">" + esc(t("cleanSelected")) + "</button>" +
+        '<button class="btn primary" id="btnClean" ' + (selMb === 0 || S.admin || lastP?.partial ? "disabled" : "") + ">" + esc(t("cleanSelected")) + "</button>" +
+        '<button class="btn outline" id="btnDirect" ' + (!selBuckets.some(b => b.direct_delete) || S.admin || lastP?.partial ? 'disabled' : '') + '>' + (locale === "zh" ? '直接释放空间' : 'Delete permanently') + '</button>' +
       "</div></div></div>"
     : "";
 
-  $("#page").innerHTML = head + '<div class="res-body">' + body + "</div>" + bar;
+  $("#page").innerHTML = head + (lastP?.partial ? '<div class="warnbox">清单达到全局预算，本次结果仅供统计。请按单个工具缩小范围重扫。</div>' : '') + '<div class="res-body">' + body + "</div>" + bar;
 
   if (!S.scanned) { const b = $("#btnScanEmpty"); if (b) b.onclick = () => startScan(curView); return; }
   const rs = $("#btnRescan"); if (rs) rs.onclick = () => startScan(curView);
   document.querySelectorAll("#modeSwitch button").forEach(el => { el.onclick = () => { mode = el.dataset.m; applyMode(); renderResults(); }; });
   document.querySelectorAll(".chip[data-f]").forEach(el => { el.onclick = () => { filter = el.dataset.f; renderResults(); }; });
   bindToolCards();
-  const bc = $("#btnClean"); if (bc) bc.onclick = openConfirm;
+  const bc = $("#btnClean"); if (bc) bc.onclick = () => openConfirm();
+  const bd = $("#btnDirect"); if (bd) bd.onclick = () => openConfirm("permanent");
   const bm = $("#btnMove"); if (bm) bm.onclick = openMove;
 }
 
@@ -704,11 +775,11 @@ function toolCard(tool, defaultOpen) {
     return '<li class="bucket-row">' +
       (lock
         ? '<button class="bk-check locked" title="' + esc(b.locked ? t("lockedTip") : t("migrateTip")) + '">' + IC.lock + "</button>"
-        : check2(checked, "")) +
+        : '<button class="bk-check' + (checked ? ' on' : '') + '" data-bucket="' + esc(b.id) + '" aria-pressed="' + checked + '">' + (checked ? IC.check : '') + '</button>') +
       '<div class="bk-mid">' +
         '<div class="bk-name-row"><span class="bk-name">' + esc(locale === "zh" ? b.name : (b.nameEn || b.name)) + "</span>" + safetyChip(b.risk) +
           (b.need_admin ? '<span class="safety danger">' + esc(t("needAdmin")) + "</span>" : "") +
-          '<span class="bk-size">' + fmt(bsize(b.id)) + "</span></div>" +
+          '<span class="bk-size">' + (b.scanned === false ? (locale === "zh" ? "未扫描" : "Not scanned") : fmt(bsize(b.id))) + "</span></div>" +
         '<p class="bk-hint">' + esc(locale === "zh" ? b.desc : (b.descEn || b.desc)) + "</p>" +
         '<div class="bk-path"><code>' + esc(p0) + (roots.length > 1 ? " +" + (roots.length - 1) : "") + '</code>' +
         (roots.length ? '<button class="bk-roots-btn" data-roots="' + b.id + '">' + esc(t("expand")) + "</button>" : "") + "</div>" +
@@ -722,13 +793,14 @@ function toolCard(tool, defaultOpen) {
         : '<button class="bk-check' + (allOn ? " on" : "") + '" data-toolcheck="' + tool.id + '" aria-checked="' + (someOn ? "mixed" : allOn) + '">' +
           (allOn ? IC.check : someOn ? '<span class="bar-ind"></span>' : "") + "</button>") +
       '<div class="tc-ic">' + icon + "</div>" +
-      '<div class="tc-mid"><div class="tc-name-row"><span class="tc-name">' + esc(tool.name) + "</span>" +
+      '<div class="tc-mid"><div class="tc-name-row"><span class="tc-name">' + esc(locale === "zh" ? tool.name : (tool.nameEn || tool.name)) + "</span>" +
         (running ? '<span class="run-badge">' + esc(t("running")) + "</span>" : "") + "</div>" +
         '<p class="tc-sub">' + esc(t("lastUsed")) + " " + esc(lastUsedTxt(tool.last_used_days)) + "</p></div>" +
       '<div class="tc-right"><div class="tc-size tabnum">' + fmt(total) + '</div><div style="margin-top:6px">' + safetyChip(highest) + "</div></div>" +
     "</div>" +
     '<button class="tc-toggle' + (open ? " open" : "") + '" data-tooltoggle="' + tool.id + '"><span>' +
       esc(open ? t("collapse") : t("expand")) + " · " + items.length + "</span>" + IC.chevD + "</button>" +
+    '<button class="btn outline sm" data-toolscan="' + tool.id + '">' + (locale === "zh" ? '只扫描此工具' : 'Scan this tool') + '</button>' +
     (open ? '<ul class="bucket-list">' + rows + "</ul>" : "") +
     "</article>";
 }
@@ -737,6 +809,12 @@ function firstRoot(bid) {
   return (b.move_root || (S.roots0 && S.roots0[bid]) || b.first_path || "");
 }
 function bindToolCards() {
+  document.querySelectorAll("[data-toolscan]").forEach(el => {
+    el.onclick = () => startScan(curView, el.dataset.toolscan);
+  });
+  document.querySelectorAll("[data-bucket]").forEach(el => {
+    el.onclick = () => { const id = el.dataset.bucket; selected[id] = !selected[id]; store(); renderResults(); };
+  });
   document.querySelectorAll("[data-toolcheck]").forEach(el => {
     el.onclick = () => {
       const tid = el.dataset.toolcheck;
@@ -763,31 +841,33 @@ function render() {
 }
 
 /* ======================= 扫描 ======================= */
-async function startScan(nextView) {
+async function startScan(nextView, toolId = null) {
   if (scanning) return;
-  const r = await api("/api/scan/start", { method: "POST" });
+  const categories = VIEW_CAT[nextView || curView] || [];
+  const ids = S.buckets.filter(b => toolId ? b.tool === toolId : categories.includes(b.category)).map(b => b.id);
+  const r = await api("/api/scan/start", { method: "POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ids}) });
   if (!r.ok) { toast(r.error || "…"); return; }
   scanning = true; scanStartTs = Date.now();
   $("#scanTitle").textContent = t("scanning");
+  $("#scanMask .hint").textContent = t("scanningHint");
   $("#scanMask").classList.add("show");
   if (nextView) { curView = nextView; view = nextView; }
-  if (pollTimer) clearInterval(pollTimer);
-  pollTimer = setInterval(pollScan, 500);
-  pollScan();
+  if (pollTimer) pollTimer();
+  pollTimer = serialPoll(pollScan, 500);
 }
 async function pollScan() {
   try {
     const p = await api("/api/progress");
     $("#scanProg").style.width = p.percent + "%";
     $("#scanCur").textContent = p.current || "";
-    if (p.status === "done" || p.status === "stopped") {
-      clearInterval(pollTimer); pollTimer = null;
+    if (p.status === "done" || p.status === "stopped" || p.status === "error") {
+      if (pollTimer) pollTimer(); pollTimer = null;
       scanning = false;
       $("#scanMask").classList.remove("show");
       S.scanned = p.status === "done";
       await refreshState();
       setView(curView === "home" ? "ai" : curView);
-      toast(t("scanDone"));
+      toast(p.partial ? "清单达到预算，仅供统计；请缩小范围重新扫描" : t("scanDone"));
     }
   } catch (e) { /* 服务未就绪 */ }
 }
@@ -796,75 +876,151 @@ async function pollScan() {
 async function refreshState() {
   try {
     const st = await api("/api/state");
-    S.admin = st.admin; S.drive = st.drive; S.driveLetter = st.drive_letter;
+    S.admin = st.admin; S.win = st.win !== false; S.drive = st.drive; S.driveLetter = st.drive_letter;
     S.tools = st.tools; S.buckets = st.buckets;
+    supportLinks = st.support_links || []; renderSupport();
+    renderAdmin();
     // 勾选恢复校验：仅保留当前存在的分项；全部失效（首装或规则升级）时按当前模式重算默认勾选
     const valid = {};
     for (const b of st.buckets) if (selected[b.id] && cleanable(b)) valid[b.id] = true;
     const kept = Object.keys(valid).length;
     selected = valid;
-    if (!kept) for (const b of st.buckets) selected[b.id] = defaultChecked(b);
+    if (!localStorage.getItem("dc-selected")) for (const b of st.buckets) selected[b.id] = defaultChecked(b);
     const p = await api("/api/progress");
     lastP = p;
+    if (p.partial) {
+      $("#scanCur").textContent = "清单达到预算，请缩小范围重扫";
+    }
     S.scanned = p.status === "done" || p.status === "stopped";
     const r = await api("/api/roots");
     if (r.ok) rootsData = r.categories;
     render();
   } catch (e) {
-    document.body.innerHTML = '<div style="margin:auto;font-size:14px;color:#888">无法连接本地服务，请重新运行 app.py</div>';
+    toast(e.message || "无法连接本地服务，请重新启动");
   }
 }
 
 /* ======================= 清理流程 ======================= */
-function collectSelected() { return S.buckets.filter(b => selected[b.id] && cleanable(b)); }
-function openConfirm() {
-  const sel = collectSelected();
+function collectSelected() {
+  const cats = VIEW_CAT[curView] || [];
+  return S.tools.filter(tool => cats.includes(tool.category) && (curView !== "ai" || filter === "all" || tool.category === filter))
+    .flatMap(tool => toolCheckable(tool)).filter(b => selected[b.id]);
+}
+let confirmedIds = [], confirmedExcluded = [], confirmedToken = null, confirmedMode = "recycle";
+$("#btnStopJob").onclick = async () => {
+  await api(cleaningOpen ? "/api/clean/stop" : "/api/scan/stop", {method:"POST"});
+  toast(t("stopRequested"));
+};
+async function openConfirm(deleteMode = "recycle") {
+  const sel = collectSelected().filter(b => deleteMode !== "permanent" || b.direct_delete);
   if (!sel.length) { toast(t("selected") + " 0"); return; }
+  const hasRB = sel.some(b => b.id === "recycle-bin");
+  if (hasRB && sel.length > 1) { toast(t("recycleAlone")); return; }  // 送回收站与清空回收站不能同一趟
+  confirmedIds = sel.map(b => b.id);
+  confirmedExcluded = confirmedIds.flatMap(id => [...(excl[id] || [])]);
+  confirmedToken = null;
+  confirmedMode = deleteMode;
+  const preview = await api("/api/clean/preview", {method:"POST", headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({ids:confirmedIds, excluded_roots:confirmedExcluded, delete_mode:deleteMode})});
+  if (!preview.ok) { toast(preview.error); return; }
+  confirmedToken = preview.plan_token;
   let sum = 0;
-  $("#confirmList").innerHTML = sel.map(b => {
-    const sz = bsize(b.id); sum += sz;
+  $("#confirmList").innerHTML = sel.filter(b => preview.per[b.id]).map(b => {
+    const sz = preview.per[b.id]?.size || 0; sum += sz;
     const ex = excl[b.id];
     const tag = ex && ex.size ? '<span style="color:var(--warning)">（-' + ex.size + "）</span>" : "";
+    const detail = preview.per[b.id];
+    const note = deleteMode === "permanent" ? '<div class="hint" style="margin:0 0 12px;overflow-wrap:anywhere">' +
+      esc(locale === "zh" ? detail.note : detail.note_en) + '<br>' + (detail.roots || []).map(esc).join('<br>') + '</div>' : '';
     return '<div class="mrow"><span class="nm">' + esc(locale === "zh" ? b.name : (b.nameEn || b.name)) + tag +
-      '</span><span class="sz">' + fmt(sz) + "</span></div>";
+      '</span><span class="sz">' + fmt(sz) + "</span></div>" + note;
   }).join("");
+  $("#maskConfirm").querySelector(".sub").textContent = t(hasRB ? "confirmRecycleOnly" : "confirmBody");
+  if (deleteMode === "permanent") {
+    $("#maskConfirm").querySelector(".sub").textContent = locale === "zh"
+      ? "以下文件将永久删除，不进入回收站。仅处理下列目录中至少 7 天未修改的文件；其他已选项目不参与。被占用或变化的文件跳过。下载缓存可能需要重新下载并消耗时间和流量，离线或下载源失效时可能无法恢复；请先结束相关安装和构建任务。"
+      : "Permanently deletes files in the listed folders unchanged for 7 days, bypassing the Recycle Bin. Other selected items stay; busy or changed files are skipped. Downloads may need time and bandwidth again; recovery may fail offline or if sources disappear. Finish related installs and builds first.";
+  }
+  // 运行中的应用：黄条警告，不硬拦截
+  const runTools = [...new Set(sel.map(b => S.tools.find(x => x.id === b.tool)).filter(t0 => t0 && t0.running).map(t0 => locale === "zh" ? t0.name : (t0.nameEn || t0.name)))];
+  let warnHtml = runTools.map(n => '<div class="warnbox">⚠ <b>' + esc(n) + "</b> " + esc(t("runningWarn")) + "</div>").join("");
   const sysSpecial = sel.filter(b => b.special && b.need_admin);
-  $("#confirmWarn").innerHTML = sysSpecial.length
-    ? '<div class="warnbox">⚠ ' + esc(t("adminTitle")) + "： " + sysSpecial.map(b => esc(b.name)).join("、") + "</div>"
-    : "";
+  if (sysSpecial.length) warnHtml += '<div class="warnbox">⚠ ' + esc(t("adminTitle")) + "： " + sysSpecial.map(b => esc(b.name)).join("、") + "</div>";
+  $("#confirmWarn").innerHTML = warnHtml;
+  $("#btnConfirmOk").textContent = runTools.length ? t("stillClean") : t("confirmAction");
+  if (deleteMode === "permanent") $("#btnConfirmOk").textContent = locale === "zh" ? "确认永久删除" : "Confirm permanent deletion";
   $("#confirmTotal").textContent = fmt(sum);
   $("#maskConfirm").classList.add("show");
 }
 $("#btnConfirmCancel").onclick = () => $("#maskConfirm").classList.remove("show");
 $("#btnConfirmOk").onclick = async () => {
-  const ids = collectSelected().map(b => b.id);
-  const excluded = [];
-  for (const id of ids) { const ex = excl[id]; if (ex) for (const p of ex) excluded.push(p); }
-  const r = await api("/api/clean", { method:"POST", headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({ ids, dry:false, excluded_roots:excluded }) });
+  const ids = confirmedIds.slice();
+  const excluded = confirmedExcluded.slice();
+  let r;
+  try {
+    r = await api("/api/clean", { method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ plan_token:confirmedToken, dry:false, ...(confirmedMode === "permanent" ? {confirm_permanent:true} : {}) }) });
+  } catch (e) {
+    const current = await api("/api/clean/progress");
+    if (!confirmedToken || current.plan_token !== confirmedToken) throw e;
+    r = {ok:true};
+  }
   if (!r.ok) { toast(r.error || "…"); return; }
   $("#maskConfirm").classList.remove("show");
   cleaningOpen = true;
   $("#scanTitle").textContent = t("cleanSelected");
+  $("#scanMask .hint").textContent = locale === "zh" ? "正在处理已确认计划；停止后保留已完成结果。" : "Processing the approved plan; stopping preserves completed results.";
   $("#scanMask").classList.add("show");
-  const t2 = setInterval(async () => {
+  const t2 = serialPoll(async () => {
     const c = await api("/api/clean/progress");
     $("#scanProg").style.width = "100%";
     $("#scanCur").textContent = c.current || "";
-    if (c.status === "done" || c.status === "stopped") {
-      clearInterval(t2); cleaningOpen = false;
+    if (c.status === "done" || c.status === "stopped" || c.status === "error") {
+      t2(); cleaningOpen = false;
       $("#scanMask").classList.remove("show");
       const freed = c.total_freed || 0;
       $("#successFreed").textContent = fmt(freed);
-      $("#successLine").textContent = t("successLine") + " " + fmt(S.drive.free) + " → " + fmt(S.drive.free + freed);
+      $("#successLine").textContent = locale === "zh" ? "正在读取磁盘可用空间；处理大小不等于释放空间。" : "Refreshing disk space; processed size is not freed space.";
+      // 按分项列出结果 + 跳过汇总 + 未动项（后端给出，前端不猜）
+      const per = c.per || {}, rep = c.report || {};
+      const lines = [];
+      for (const cid in per) {
+        if (per[cid].freed > 0) {
+          const b = B(cid);
+          const nm = b ? (locale === "zh" ? b.name : (b.nameEn || b.name)) : cid;
+          lines.push('<div class="mrow"><span class="nm">' + esc(nm) + ' · ' + esc(c.via === "permanent" ? t("permanentWord") : t("recycledWord")) +
+            ' <span class="sz">' + fmt(per[cid].freed) + "</span></span></div>");
+        }
+      }
+      if (c.total_skipped > 0) lines.push('<div class="mrow"><span class="nm" style="color:var(--muted)">' + esc(t("skippedFiles").replace("{n}", c.total_skipped)) + "</span></div>");
+      const un = [].concat(rep.untouched_locked || [], rep.untouched_migrate || []).map(cid => {
+        const b = B(cid); if (!b) return cid;
+        const sz = bsize(cid);
+        return (locale === "zh" ? b.name : (b.nameEn || b.name)) + (sz > 0 ? " " + fmt(sz) : "");
+      });
+      if (un.length) lines.push('<div class="mrow"><span class="nm" style="color:var(--info)">' + esc(t("untouched")) + "：" + esc(un.join(" · ")) + "</span></div>");
+      $("#successReport").innerHTML = lines.join("");
+      $("#btnOpenRecycle").style.display = (c.via !== "permanent" && S.win !== false) ? "" : "none";
       const off = localStorage.getItem("dc-donate-off") === "1";
-      $("#donateBox").style.display = off ? "none" : "";
+      $("#donateBox").style.display = off || !supportLinks.length ? "none" : "";
       $("#maskSuccess").classList.add("show");
+      if (c.status === "error") {
+        $("#maskSuccess h2").textContent = locale === "zh" ? "任务异常，以下为已处理结果" : "Task failed; partial results";
+        toast(c.current || "任务异常");
+      } else $("#maskSuccess h2").textContent = t("successTitle");
+      try {
+        const fresh = await api("/api/state");
+        $("#successLine").textContent = t("successLine") + " " + fmt(S.drive.free) + " → " + fmt(fresh.drive.free);
+        S.drive = fresh.drive;
+      } catch (e) {
+        $("#successLine").textContent = locale === "zh" ? "处理结果已保留；磁盘空间暂时读取失败。" : "Results retained; disk space is temporarily unavailable.";
+      }
       await refreshState();
     }
   }, 600);
 };
 $("#donateOff").onchange = e => { try { localStorage.setItem("dc-donate-off", e.target.checked ? "1" : "0"); } catch(err) {} };
+$("#btnOpenRecycle").onclick = async () => { const r = await api("/api/open_recycle", { method: "POST" }); if (!r.ok) toast(r.error || "…"); };
 $("#btnSuccessClose").onclick = () => { $("#maskSuccess").classList.remove("show"); $("#donateOff").checked = false; };
 $("#btnSuccessDone").onclick = () => { $("#maskSuccess").classList.remove("show"); $("#donateOff").checked = false; refreshState(); };
 
@@ -926,7 +1082,7 @@ function renderMoveList() {
     const tool = S.tools.find(x => x.id === b.tool) || { name: b.tool };
     return '<div class="mrow" style="cursor:pointer" data-mtool="' + b.tool + '">' +
       '<button class="bk-check ' + (moveTool === b.tool ? "on" : "") + '" style="pointer-events:none">' + (moveTool === b.tool ? IC.check : "") + "</button>" +
-      '<span class="nm">' + esc(tool.name) + " · " + esc(locale === "zh" ? b.name : (b.nameEn || b.name)) + "</span>" +
+      '<span class="nm">' + esc(locale === "zh" ? tool.name : (tool.nameEn || tool.name)) + " · " + esc(locale === "zh" ? b.name : (b.nameEn || b.name)) + "</span>" +
       '<span class="sz">' + fmt(bsize(b.id)) + "</span></div>";
   }).join("");
   $("#moveTarget").innerHTML = esc(t("movePick")) + " <b>" + esc(moveDrive + ":\\DeepCleanMoved") + "</b>";
@@ -936,14 +1092,14 @@ $("#btnMoveClose").onclick = $("#btnMoveCancel").onclick = () => $("#maskMove").
 $("#btnMoveStart").onclick = async () => {
   $("#btnMoveStart").disabled = true;
   const r = await api("/api/move", { method:"POST", headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({ tool: moveTool, to: moveDrive, dry: false }) });
+    body: JSON.stringify({ tool: moveTool, to: moveDrive, dry: true }) });
   if (!r.ok) { toast(r.error || t("moveErr")); $("#btnMoveStart").disabled = false; return; }
   $("#scanTitle").textContent = t("moveRunning");
   $("#scanMask").classList.add("show");
-  const t2 = setInterval(async () => {
+  const t2 = serialPoll(async () => {
     const m = await api("/api/move/progress");
     if (m.status !== "running") {
-      clearInterval(t2);
+      t2();
       $("#scanMask").classList.remove("show");
       $("#btnMoveStart").disabled = false;
       $("#maskMove").classList.remove("show");
@@ -967,20 +1123,41 @@ function applyLocale(l) {
   applyI18nStatic();
   document.documentElement.lang = l === "zh" ? "zh-CN" : "en";
   renderNav(); render(); renderLangSeg();
+  renderSupport();
 }
 function renderLangSeg() {
   document.querySelectorAll("#langSeg button").forEach(b => b.classList.toggle("on", b.dataset.lang === locale));
   document.querySelectorAll("#themeSeg button").forEach(b => b.classList.toggle("on", b.dataset.theme === (document.body.classList.contains("light") ? "light" : "dark")));
 }
-$("#btnSettings").onclick = () => { renderLangSeg(); $("#maskSettings").classList.add("show"); };
+$("#btnSettings").onclick = async () => {
+  renderLangSeg();
+  $("#maskSettings").classList.add("show");
+  try {  // 只读「最近 10 次清理」，无还原入口
+    const r = await api("/api/history?limit=10");
+    const items = r.items || [];
+    $("#recentList").innerHTML = items.length
+      ? items.map(it => '<div class="mrow"><span class="nm">' + esc(String(it.ts || "").replace("T", " ")) +
+          '</span><span class="st">' + esc(it.via === "permanent" ? t("permanentWord") : t("recycledWord")) + " " + fmt(it.total_freed || 0) + "</span></div>").join("")
+      : '<div class="mrow"><span class="nm" style="color:var(--muted)">—</span></div>';
+  } catch (e) { $("#recentList").innerHTML = '<div class="mrow"><span class="nm" style="color:var(--muted)">—</span></div>'; }
+};
 $("#btnSettingsClose").onclick = $("#btnSettingsOk").onclick = () => $("#maskSettings").classList.remove("show");
+$("#btnQuit").onclick = async () => {
+  const result = await api("/api/shutdown", {method:"POST"});
+  if (!result.ok) { toast(result.error); return; }
+  document.body.innerHTML = '<p style="margin:auto">' + t('quitDone') + '</p>';
+};
 document.querySelectorAll("#langSeg button").forEach(b => b.onclick = () => applyLocale(b.dataset.lang));
 document.querySelectorAll("#themeSeg button").forEach(b => b.onclick = () => { applyTheme(b.dataset.theme); renderLangSeg(); });
 
 /* ======================= 管理员横幅 ======================= */
 function renderAdmin() {
   const el = $("#adminStrip");
-  if (S.admin) { el.classList.remove("show"); return; }
+  if (S.admin) {
+    el.classList.add("show");
+    el.textContent = locale === "zh" ? "管理员模式：仅只读扫描与预览。清理请关闭此实例并以普通权限启动。" : "Elevated mode is read-only. Restart without elevation to clean files.";
+    return;
+  }
   el.classList.add("show");
   el.innerHTML = "<span>⚠ <b>" + esc(t("adminTitle")) + "</b> — " + esc(t("adminBody")) + "</span>" +
     '<button class="btn outline sm" id="btnRelaunch">' + esc(t("adminAction")) + "</button>";
@@ -997,16 +1174,17 @@ async function poll() {
   try {
     const p = await api("/api/progress");
     lastP = p;
-    if (!scanning && (p.status === "done" || p.status === "stopped")) S.scanned = true;
+    if (!scanning && (p.status === "done" || p.status === "stopped" || p.status === "error")) S.scanned = true;
   } catch (e) {}
   pollBusy = false;
 }
-setInterval(() => { if (S.scanned && !scanning) poll(); }, 3000);
+// Idle pages do not poll; active jobs own their polling lifecycle.
 
 /* ======================= 初始化 ======================= */
 (async function init() {
   $("#logoIcon").innerHTML = IC.logo;
   $("#setIc").innerHTML = IC.settings;
+  const fb = $("#feedbackIc"); if (fb) fb.innerHTML = IC.feedback;
   $("#btnSuccessClose").innerHTML = IC.x;
   $("#btnRootsClose").innerHTML = IC.x;
   $("#btnMoveClose").innerHTML = IC.x;

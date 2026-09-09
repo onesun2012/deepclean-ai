@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>DeepClean</title>
+<meta name="description" content="DeepClean — free local Windows cleaner for AI tool caches on C: drive."/>
+<style>
+:root{--bg:#090b0a;--surface:#151a17;--surface2:#1c221e;--fg:#e7ede8;--muted:#8d968f;--border:#232a26;--accent:#6ed9a8;--accent-fg:#062016}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--fg);line-height:1.55}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+.wrap{max-width:880px;margin:0 auto;padding:32px 20px 64px}
+.topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:28px}
+.lang{display:flex;gap:6px}
+.lang button{background:var(--surface2);border:1px solid var(--border);color:var(--fg);border-radius:8px;padding:6px 10px;cursor:pointer;font:inherit}
+.lang button.on{background:var(--accent);color:var(--accent-fg);border-color:transparent}
+.brand{font-size:28px;font-weight:700;letter-spacing:-.02em}
+.tag{color:var(--muted);margin-top:8px;font-size:16px}
+.actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}
+.btn{display:inline-block;padding:10px 14px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--fg);font-weight:600}
+.btn.primary{background:var(--accent);color:var(--accent-fg);border-color:transparent}
+button.btn{cursor:pointer;font:inherit}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;margin:18px 0}
+.card h2{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:12px}
+.card h3{font-size:18px;margin-bottom:8px}
+ul{padding-left:18px;color:var(--muted)}
+li{margin:6px 0}
+.pay-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;justify-items:center;align-items:stretch}
+.pay-slot{display:flex;align-items:center;justify-content:center;min-height:48px;width:100%;padding:12px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--fg);font-weight:600;text-align:center}
+details.pay-qr{border:1px solid var(--border);border-radius:10px;background:var(--surface2);padding:10px 12px;width:100%;text-align:center}
+details.pay-qr summary{cursor:pointer;font-weight:600;list-style:none;text-align:center}
+details.pay-qr img{display:block;max-width:100%;max-height:160px;margin:10px auto 0;border-radius:8px}
+#support .note{text-align:center}
+#support h2,#support h3{text-align:center}
+.pay-grid > :last-child:nth-child(odd){grid-column:1 / -1;justify-self:start;width:calc(50% - 5px)}
+label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
+input,textarea{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--bg);color:var(--fg)}
+textarea{min-height:120px;resize:vertical}
+.note{font-size:12px;color:var(--muted);margin-top:8px}
+footer{margin-top:28px;color:var(--muted);font-size:12px}
+@media (max-width:560px){.pay-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <div class="brand">DeepClean</div>
+    <div class="lang" id="langSeg">
+      <button type="button" data-lang="en" class="on">English</button>
+      <button type="button" data-lang="zh">中文</button>
+    </div>
+  </div>
+
+  <header>
+    <p class="tag" data-i18n="tagline">C: drive filled by AI tools? Scan caches, clean safely, preview model moves — free and local-only.</p>
+    <div class="actions">
+      <a class="btn primary" href="https://github.com/onesun2012/deepclean-ai/releases" data-i18n="download">Download / Releases</a>
+      <a class="btn" href="https://github.com/onesun2012/deepclean-ai" data-i18n="repo">GitHub repo</a>
+      <a class="btn" href="#feedback" data-i18n="feedback">Send feedback</a>
+    </div>
+  </header>
+
+  <section class="card">
+    <h2 data-i18n="product">Product</h2>
+    <h3 data-i18n="whatTitle">What it does</h3>
+    <ul>
+      <li data-i18n="f1">Scans Cursor, Claude Code, Codex, Hugging Face, Ollama, chat apps, and system junk on Windows</li>
+      <li data-i18n="f2">Safe defaults: sessions and histories stay locked; clean goes to Recycle Bin when possible</li>
+      <li data-i18n="f3">Model locations are statistics + preview only until migration is fully hardened</li>
+      <li data-i18n="f4">All rules live in the open rules/ folder — contributions welcome</li>
+    </ul>
+  </section>
+
+  <section class="card" id="support">
+    <h2 data-i18n="tipTitle">Tip the author</h2>
+    <p class="note" style="margin-bottom:12px" data-i18n="tipNote">DeepClean is free. Supporting the author is optional and does not unlock extra features.</p>
+    <div class="pay-grid">
+      <details class="pay-qr"><summary data-i18n="wechat">WeChat</summary><img src="assets/donate-wechat.png" alt="WeChat QR"/></details>
+      <details class="pay-qr"><summary data-i18n="alipay">Alipay</summary><img src="assets/donate-alipay.png" alt="Alipay QR"/></details>
+      <a class="pay-slot" href="https://afdian.com/a/onesun" target="_blank" rel="noopener" data-i18n="afdian">Afdian</a>
+      <a class="pay-slot" href="https://ko-fi.com/onesun" target="_blank" rel="noopener">Ko-fi</a>
+      <a class="pay-slot" href="https://github.com/sponsors/onesun2012" target="_blank" rel="noopener">GitHub Sponsors</a>
+    </div>
+  </section>
+
+  <section class="card" id="feedback">
+    <h2 data-i18n="feedbackTitle">Feedback</h2>
+    <h3 data-i18n="leaveMsg">Leave a message</h3>
+    <p class="note" style="margin-bottom:10px" data-i18n="feedbackNote">Submit emails the maintainer via FormSubmit. The first submission may require one confirmation click in the inbox.</p>
+    <form action="https://formsubmit.co/tonyong.2009@163.com" method="POST">
+      <input type="hidden" name="_subject" id="mailSubject" value="DeepClean product feedback"/>
+      <input type="hidden" name="_captcha" value="false"/>
+      <input type="hidden" name="_template" value="table"/>
+      <input type="text" name="_honey" style="display:none"/>
+      <label for="name" data-i18n="nameLabel">Name (optional)</label>
+      <input id="name" name="name" data-i18n-placeholder="namePh" placeholder="Your name"/>
+      <label for="email" data-i18n="emailLabel">Email (optional, for reply)</label>
+      <input id="email" type="email" name="email" data-i18n-placeholder="emailPh" placeholder="you@example.com"/>
+      <label for="message" data-i18n="messageLabel">Message</label>
+      <textarea id="message" name="message" required data-i18n-placeholder="messagePh" placeholder="Bug, idea, or question…"></textarea>
+      <div class="actions" style="margin-top:14px">
+        <button class="btn primary" type="submit" data-i18n="submit">Submit feedback</button>
+      </div>
+    </form>
+  </section>
+
+  <footer>
+    <div>DeepClean · <a href="https://github.com/onesun2012/deepclean-ai">onesun2012/deepclean-ai</a> · <span data-i18n="free">free to use</span></div>
+  </footer>
+</div>
+<script>
+const I18N = {
+  en: {
+    tagline: "C: drive filled by AI tools? Scan caches, clean safely, preview model moves — free and local-only.",
+    download: "Download / Releases",
+    repo: "GitHub repo",
+    feedback: "Send feedback",
+    product: "Product",
+    whatTitle: "What it does",
+    f1: "Scans Cursor, Claude Code, Codex, Hugging Face, Ollama, chat apps, and system junk on Windows",
+    f2: "Safe defaults: sessions and histories stay locked; clean goes to Recycle Bin when possible",
+    f3: "Model locations are statistics + preview only until migration is fully hardened",
+    f4: "All rules live in the open rules/ folder — contributions welcome",
+    tipTitle: "Tip the author",
+    tipNote: "DeepClean is free. Supporting the author is optional and does not unlock extra features.",
+    wechat: "WeChat",
+    alipay: "Alipay",
+    afdian: "Afdian",
+    feedbackTitle: "Feedback",
+    leaveMsg: "Leave a message",
+    feedbackNote: "Submit emails the maintainer via FormSubmit. The first submission may require one confirmation click in the inbox.",
+    nameLabel: "Name (optional)",
+    emailLabel: "Email (optional, for reply)",
+    messageLabel: "Message",
+    namePh: "Your name",
+    emailPh: "you@example.com",
+    messagePh: "Bug, idea, or question…",
+    submit: "Submit feedback",
+    free: "free to use",
+    mailSubject: "DeepClean product feedback"
+  },
+  zh: {
+    tagline: "C 盘被 AI 工具吃满了？扫描缓存、安全清理、预览模型迁移 — 免费、仅本地运行。",
+    download: "下载 / Releases",
+    repo: "GitHub 仓库",
+    feedback: "留言反馈",
+    product: "产品",
+    whatTitle: "能做什么",
+    f1: "扫描 Windows 上的 Cursor、Claude Code、Codex、Hugging Face、Ollama、聊天应用与系统垃圾",
+    f2: "默认偏安全：会话与历史锁定；清理尽量送回收站",
+    f3: "模型目录目前只做统计与预览，待迁移加固后再开放执行",
+    f4: "全部规则开放在 rules/ 目录，欢迎贡献",
+    tipTitle: "支持作者",
+    tipNote: "DeepClean 免费使用。自愿支持不解锁额外功能。",
+    wechat: "微信赞赏",
+    alipay: "支付宝",
+    afdian: "爱发电",
+    feedbackTitle: "反馈",
+    leaveMsg: "留言",
+    feedbackNote: "提交后通过 FormSubmit 发到维护者邮箱。首次提交可能需要在收件箱点一次确认。",
+    nameLabel: "称呼（可选）",
+    emailLabel: "邮箱（可选，便于回复）",
+    messageLabel: "留言内容",
+    namePh: "怎么称呼你",
+    emailPh: "you@example.com",
+    messagePh: "缺陷、想法或问题…",
+    submit: "提交反馈",
+    free: "免费使用",
+    mailSubject: "DeepClean 产品反馈"
+  }
+};
+
+let locale = "en";
+try {
+  const saved = localStorage.getItem("dc-site-locale");
+  if (saved === "zh" || saved === "en") locale = saved;
+  else if (navigator.language && navigator.language.toLowerCase().startsWith("zh")) locale = "zh";
+} catch (e) {}
+
+function applyLocale(l) {
+  locale = l;
+  try { localStorage.setItem("dc-site-locale", l); } catch (e) {}
+  document.documentElement.lang = l === "zh" ? "zh-CN" : "en";
+  const pack = I18N[l] || I18N.en;
+  document.querySelectorAll("[data-i18n]").forEach(el => {
+    const key = el.getAttribute("data-i18n");
+    if (pack[key]) el.textContent = pack[key];
+  });
+  document.querySelectorAll("[data-i18n-placeholder]").forEach(el => {
+    const key = el.getAttribute("data-i18n-placeholder");
+    if (pack[key]) el.setAttribute("placeholder", pack[key]);
+  });
+  const sub = document.getElementById("mailSubject");
+  if (sub && pack.mailSubject) sub.value = pack.mailSubject;
+  document.querySelectorAll("#langSeg button").forEach(b => b.classList.toggle("on", b.dataset.lang === locale));
+  document.title = l === "zh" ? "深清 DeepClean — C 盘 AI 工具清理" : "DeepClean — Free C: drive cleaner for AI tools";
+}
+
+document.querySelectorAll("#langSeg button").forEach(b => b.onclick = () => applyLocale(b.dataset.lang));
+applyLocale(locale);
+</script>
+</body>
+</html>

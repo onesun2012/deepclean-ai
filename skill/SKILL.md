@@ -1,6 +1,6 @@
 ---
 name: clear-c
-description: 深清 DeepClean — C 盘清理工具，专治 AI 工具吃满 C 盘。当用户要求清理C盘、释放磁盘空间、清理 Cursor/Claude Code/Codex/ZCode 缓存、清理 npm/pip/uv 缓存、清理 HuggingFace/Ollama 本地模型（支持迁移到 D 盘）、清理豆包/Kimi/微信/QQ 缓存时使用。先扫描预览再确认清理，全部本地执行。
+description: 深清 DeepClean — C 盘清理工具，专治 AI 工具吃满 C 盘。当用户要求清理C盘、释放磁盘空间、清理 Cursor/Claude Code/Codex/ZCode 缓存、清理 npm/pip/uv 缓存、清理 HuggingFace/Ollama 本地模型（仅提供迁移预览）、清理豆包/Kimi/微信/QQ 缓存时使用。先扫描预览再确认清理，全部本地执行。
 ---
 
 # 深清 DeepClean（C 盘 AI 工具专清）
@@ -13,7 +13,7 @@ description: 深清 DeepClean — C 盘清理工具，专治 AI 工具吃满 C �
 - **四档安全级（risk）**：
   - `safe` 安全可删（日志/临时/更新包）—— 可直接清理
   - `rebuildable` 可重建（包缓存/索引）—— 可清理，删除后下次使用会重建
-  - `migrate` 建议迁移（本地模型等大文件）—— **不可删除**，用 `cli move` 迁移到其他盘
+  - `migrate` 建议迁移（本地模型等大文件）—— **不可删除**，仅用 `cli move --dry` 预览
   - `danger` 危险（会话记录/对话历史）—— **锁定，永不清理**，任何命令都会被后端拒绝
 
 ## 可用命令
@@ -36,23 +36,23 @@ python "{{APP_DIR}}\app.py" cli clean --ids cursor-cache --yes --exclude-root "C
 
 # 6. 迁移本地模型到其他盘（先 dry 预览）
 python "{{APP_DIR}}\app.py" cli move --tool ollama --to D --dry
-python "{{APP_DIR}}\app.py" cli move --tool ollama --to D
 ```
 
 - `cli scan` 输出结构：`tools[]`（含 running/last_used_days/size）、`buckets[]`（含 risk/locked/cleanable/size/roots 目录明细）、`totals{safe,review,migrate}`、`drive{free,total}`
 - `cli clean` 需要时会自动先扫描；每分项支持 `--exclude-root` 排除子目录
+- 默认回收站。`cli clean --ids npm-store,python-cache --permanent` 输出永久删除计划，`--yes` 执行、`--dry` 只预览。此选项仅支持用户 Temp、pip HTTP、npm `_cacache`、NuGet HTTP、Electron 下载缓存中至少 7 天未修改的文件；说明实际目录与重下载时间/流量、离线或源失效无法恢复的影响。普通清理授权不自动包含永久删除；遵守用户已明确授权的范围。
 
 ## 标准工作流程
 
 1. **摸底**：`cli scan`，把结果整理成「工具 → 大小 → 可清/可迁」清单展示给用户
 2. **确认**：推荐先清 `safe` 级；`rebuildable` 级说明"删除后下次使用会重建"；`migrate` 级建议迁移而非删除。**等待用户确认**
 3. **执行**：`cli clean --ids ... --yes`，汇报 freed/skipped 与各分项 note
-4. **迁移**：用户同意后 `cli move --tool <id> --to <盘符>`（务必先 `--dry` 预览）；迁移完成报告"原位置已建立目录联接，应用无需配置"
+4. **迁移预览**：仅调用 `cli move --tool <id> --to <盘符> --dry`；当前版本不能执行迁移，不得报告已迁移。
 
 ## 安全红线（必须遵守）
 
 - `danger`/`locked` 分项（全部 AI 工具的会话记录）**永远不会被清理**——不要请求，后端也会拒绝
-- `migrate` 分项不可清理，只能走 `cli move`；迁移前必须先 `--dry` 并征得用户同意
-- 系统级分项（`winsxs`/`pagefile`/`hibernate`/`restore-points`）执行系统命令，必须用户明确同意
+- `migrate` 分项不可清理，当前只支持 `cli move --dry` 预览
+- 系统级分项（`winsxs`/`pagefile`/`hibernate`/`restore-points`）已锁定，系统变更实现已移除；管理员实例只读
 - 只通过本工具 CLI 清理，不要绕过工具手动删除任何路径
 - 工具仅监听本机、不联网；扫描结果只含路径/大小/时间，可放心展示

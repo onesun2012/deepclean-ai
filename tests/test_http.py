@@ -53,6 +53,7 @@ def main():
 
     def http(method, path, body=None, headers=None):
         r = urllib.request.Request(base + path, data=body, method=method)
+        r.add_header("X-DeepClean-Token", app.API_TOKEN)
         if body is not None:
             r.add_header("Content-Type", "application/json")
         for k, v in (headers or {}).items():
@@ -98,7 +99,7 @@ def main():
         s = socket.create_connection(("127.0.0.1", port), timeout=10)
         s.sendall(("POST /api/clean HTTP/1.1\r\nHost: 127.0.0.1:%d\r\n"
                    "Content-Type: application/json\r\nContent-Length: 1000001\r\n"
-                   "Connection: close\r\n\r\n{}" % port).encode())
+                   "X-DeepClean-Token: %s\r\nConnection: close\r\n\r\n{}" % (port, app.API_TOKEN)).encode())
         resp = s.recv(4096)
         s.close()
         check("超大 Content-Length 返回 413", b" 413 " in resp.split(b"\r\n", 1)[0])
